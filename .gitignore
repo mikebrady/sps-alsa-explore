@@ -1,0 +1,43 @@
+/INSTALL
+/shairport-sync
+/shairport-sync.exe
+/shairport-sync-dbus-test-client
+/shairport-sync-mpris-test-client
+
+*.o
+/*~
+*.xml~
+/config.mk
+/config.h
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache
+compile
+config.*
+configure
+depcomp
+install-sh
+missing
+stamp-h1
+.dirstamp
+.deps
+man/Makefile
+man/Makefile.in
+scripts/shairport-sync.service
+scripts/shairport-sync
+shairport-sync.core
+
+#Some dbus files that are automatically generated
+/org.gnome.ShairportSync.service
+/dbus-interface.*
+/mpris-interface.*
+/lib_*.*
+
+# Some eclipse project files
+.cproject
+.project
+
+# macOS stuff
+.DS_Store
+shairport-sync.xcodeproj
