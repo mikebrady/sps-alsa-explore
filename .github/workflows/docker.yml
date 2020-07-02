@@ -5,6 +5,7 @@ on:
     # Publish `master` as Docker `latest` image.
     branches:
       - master
+      - development
 
     # Publish `1.2.3` tags as releases.
     tags:
@@ -33,11 +34,11 @@ jobs:
           # Map git ref branch or tag name to Docker tag version
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
-          [ "$VERSION" == "master" ] && VERSION=latest
-
-          # If tagged with a version, build the same version of shairport-sync
-          ALSAEXPLORE_BRANCH=master
-          [ "$VERSION" != "latest" ] && ALSAEXPLORE_BRANCH=tags/$VERSION
+          [ "$VERSION" == "master" ] && VERSION=latest && ALSAEXPLORE_BRANCH=master
+          [ "$VERSION" == "development" ] && VERSION=development && ALSAEXPLORE_BRANCH=development
+          
+          # If tagged with a version, build the same version of alsaexplore
+          [ "$VERSION" != "latest" ] && [ "$VERSION" != "development" ] && ALSAEXPLORE_BRANCH=tags/$VERSION
 
           # Output build arguments for downstream steps
           echo ::set-output name=buildx_args::\
