@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.50])
-AC_INIT([amixer], [1.0.1], [mikebradydublin@icloud.com])
+AC_INIT([amixer], [1.0.2], [mikebradydublin@icloud.com])
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([amixer.c])
 AC_CONFIG_HEADERS([config.h])
