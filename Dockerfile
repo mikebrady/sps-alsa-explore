@@ -23,7 +23,7 @@ FROM alpine
 RUN 	apk add alsa-lib 
 RUN 	rm -rf  /lib/apk/db/*
 
-COPY 	--from=builder /alsaexplore/amixer /
+COPY 	--from=builder /alsaexplore/alsaexplore /usr/local/bin
 
 ENTRYPOINT [ "/bin/sh" ]
 

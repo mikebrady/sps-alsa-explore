@@ -1,3 +1,5 @@
+// ALSAExplore is based on amixer, license below.
+
 /*
  *   ALSA command line mixer utility
  *   Copyright (c) 1999-2000 by Jaroslav Kysela <perex@perex.cz>
@@ -30,7 +32,9 @@
 #include <alsa/asoundlib.h>
 #include <poll.h>
 #include <stdint.h>
-#include "amixer.h"
+#include "alsaexplore.h"
+#include "config.h"
+
 // #include "../alsamixer/volume_mapping.h"
 
 #define LEVEL_BASIC		(1<<0)
@@ -50,7 +54,7 @@ static void error(const char *fmt,...)
 	va_list va;
 
 	va_start(va, fmt);
-	fprintf(stderr, "amixer: ");
+	fprintf(stderr, "%s: ", PACKAGE_NAME);
 	vfprintf(stderr, fmt, va);
 	fprintf(stderr, "\n");
 	va_end(va);
@@ -58,7 +62,7 @@ static void error(const char *fmt,...)
 
 static int help(void)
 {
-	printf("Usage: amixer <options> [command]\n");
+	printf("Usage: %s <options> [command]\n", PACKAGE_NAME);
 	printf("\nAvailable options:\n");
 	printf("  -h,--help       this help\n");
 	printf("  -c,--card N     select the card\n");
@@ -1831,7 +1835,7 @@ int main(int argc, char *argv[])
 			no_check = 1;
 			break;
 		case 'v':
-			printf("amixer version MB 1.0\n");
+			printf("%s\n",PACKAGE_STRING);
 			return 1;
 		case 'a':
 			smixer_level = 1;
@@ -1897,7 +1901,7 @@ int main(int argc, char *argv[])
 	} else if (!strcmp(argv[optind], "sevents")) {
 		return sevents(argc - optind - 1, argc - optind > 1 ? argv + optind + 1 : NULL);
 	} else {
-		fprintf(stderr, "amixer: Unknown command '%s'...\n", argv[optind]);
+		fprintf(stderr, "%s: Unknown command '%s'...\n", PACKAGE_NAME, argv[optind]);
 	}
 
 	return 0;

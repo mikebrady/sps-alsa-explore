@@ -2,9 +2,9 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.50])
-AC_INIT([amixer], [1.0.3d1], [mikebradydublin@icloud.com])
+AC_INIT([alsaexplore], [1.0.3d3], [4265913+mikebrady@users.noreply.github.com])
 AM_INIT_AUTOMAKE
-AC_CONFIG_SRCDIR([amixer.c])
+AC_CONFIG_SRCDIR([alsaexplore.c])
 AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.

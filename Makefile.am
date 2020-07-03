@@ -1,2 +1,2 @@
-bin_PROGRAMS = amixer
+bin_PROGRAMS = alsaexplore
 
