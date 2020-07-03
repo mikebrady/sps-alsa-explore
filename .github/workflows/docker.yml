@@ -3,10 +3,8 @@ name: Docker
 on:
   push:
     # Publish `master` as Docker `latest` image.
-    # Publish `development` as Docker `latest-dev` image.
     branches:
       - master
-      - development
 
     # Publish `1.2.3` tags as releases.
     tags:
@@ -36,10 +34,9 @@ jobs:
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
           [ "$VERSION" == "master" ] && VERSION=latest && ALSAEXPLORE_BRANCH=master
-          [ "$VERSION" == "development" ] && VERSION=latest-dev && ALSAEXPLORE_BRANCH=development
           
           # If tagged with a version, build the same version of alsaexplore
-          [ "$VERSION" != "latest" ] && [ "$VERSION" != "latest-dev" ] && ALSAEXPLORE_BRANCH=tags/$VERSION
+          [ "$VERSION" != "latest" ] && ALSAEXPLORE_BRANCH=tags/$VERSION
 
           # Output build arguments for downstream steps
           echo ::set-output name=buildx_args::\
