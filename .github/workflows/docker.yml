@@ -9,10 +9,6 @@ on:
     # Publish `1.2.3` tags as releases.
     tags:
       - '*'
-
-  # Run a test build for any PRs.
-  pull_request:
-
 env:
   IMAGE_NAME: mikebrady/alsaexplore
 #  DOCKER_PLATFORMS: linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64
@@ -29,6 +25,7 @@ jobs:
       # See: https://github.com/crazy-max/ghaction-docker-buildx/issues/134
       - name: Prepare
         id: prepare
+        if: github.repository -- 'mikebrady/alsaexplore'
         run: |
           # Map git ref branch or tag name to Docker tag version
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
@@ -49,17 +46,18 @@ jobs:
       - uses: crazy-max/ghaction-docker-buildx@v1.2.1
 
       - name: Build
+        if: github.repository -- 'mikebrady/alsaexplore'     
         run: |
           docker buildx build \
             --output type=image,push=false \
             ${{ steps.prepare.outputs.buildx_args }}
 
       - name: Log into registry
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.repository -- 'mikebrady/alsaexplore'
         run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login --username $DOCKER_HUB_USER --password-stdin
 
       - name: Push to registry
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.repository -- 'mikebrady/alsaexplore'
         run: |
           docker buildx build \
             --output type=image,push=true \
