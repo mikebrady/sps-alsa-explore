@@ -13,10 +13,11 @@ AC_PROG_CC
 PKG_PROG_PKG_CONFIG([0.9.0])
 
 # Checks for libraries.
+AC_CHECK_LIB([m],[exp], , AC_MSG_ERROR(maths library needed))
 PKG_CHECK_MODULES([ALSA], [alsa], [LIBS="${ALSA_LIBS} ${LIBS}"])
 
 # Checks for header files.
-AC_CHECK_HEADERS([stdint.h stdlib.h string.h])
+AC_CHECK_HEADERS([stdint.h stdlib.h string.h math.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 
