@@ -373,8 +373,8 @@ static int cards(void) {
           error("control digital audio info (%i): %s", card, snd_strerror(err));
         continue;
       }
+      printf("ALSA Hardware Output Device %d:\n", card_number);
       if (check_alsa_device(1) == 0) {
-        printf("ALSA Hardware Output Device %d:\n", card_number);
         printf("Full Name:       \"hw:CARD=%s,DEV=%i\"\n", snd_ctl_card_info_get_id(info), dev);
         printf("Short Name:      ");
         if (dev > 0)
@@ -388,6 +388,8 @@ static int cards(void) {
         } else {
           printf("No Mixers.\n");
         }
+      } else {
+        printf("Shairport Sync can not use this device.\n");
       }
 
 
