@@ -88,7 +88,7 @@ static int selems_if_has_db_playback(int include_mixers_with_capture, int quiet)
                 if (snd_mixer_selem_get_playback_dB_range(elem, &min_db, &max_db) == 0) {
                   snd_mixer_selem_get_id(elem, sid);
                   if (quiet == 0)
-                    printf("                 \"%s\"\n", snd_mixer_selem_id_get_name(sid));
+                    printf("                     \"%s\"\n", snd_mixer_selem_id_get_name(sid));
                   result++;
                 }
               }
@@ -373,14 +373,13 @@ static int cards(void) {
           error("control digital audio info (%i): %s", card, snd_strerror(err));
         continue;
       }
-      printf("ALSA Hardware Output Device %d:\n", card_number);
+      printf("ALSA Output Device:  \"hw:CARD=%s,DEV=%i\"\n", snd_ctl_card_info_get_id(info), dev);
+      printf("Short Name:          ");
+      if (dev > 0)
+        printf("\"hw:%i,%i\"\n",card_number, dev);
+      else
+        printf("\"hw:%i\"\n",card_number);
       if (check_alsa_device(1) == 0) {
-        printf("Full Name:       \"hw:CARD=%s,DEV=%i\"\n", snd_ctl_card_info_get_id(info), dev);
-        printf("Short Name:      ");
-        if (dev > 0)
-          printf("\"hw:%i,%i\"\n",card_number, dev);
-        else
-          printf("\"hw:%i\"\n",card_number);
         if ((selems_if_has_db_playback(0,1)) || (selems_if_has_db_playback(1,1))) {
           printf("dB Mixers:\n");
           selems_if_has_db_playback(0,0); // omit mixers that also have a capture part
