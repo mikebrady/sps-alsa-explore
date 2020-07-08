@@ -49,7 +49,7 @@ static int ignore_error = 0;
 static struct snd_mixer_selem_regopt smixer_options;
 static char card[64] = "default";
 
-static void error(const char *fmt, ...) {
+void error(const char *fmt, ...) {
   va_list va;
 
   va_start(va, fmt);
@@ -88,7 +88,7 @@ static int help(void) {
   return 0;
 }
 
-#define error(...)                                                                                 \
+#define merror(...)                                                                                 \
   do {                                                                                             \
     fprintf(stderr, "error: %s:%d: ", __func__, __LINE__);                                         \
     fprintf(stderr, __VA_ARGS__);                                                                  \
@@ -1771,6 +1771,257 @@ static int exec_stdin(void) {
   return 0;
 }
 
+typedef enum {
+  SPS_FORMAT_UNKNOWN = 0,
+  SPS_FORMAT_S8,
+  SPS_FORMAT_U8,
+  SPS_FORMAT_S16,
+  SPS_FORMAT_S16_LE,
+  SPS_FORMAT_S16_BE,
+  SPS_FORMAT_S24,
+  SPS_FORMAT_S24_LE,
+  SPS_FORMAT_S24_BE,
+  SPS_FORMAT_S24_3LE,
+  SPS_FORMAT_S24_3BE,
+  SPS_FORMAT_S32,
+  SPS_FORMAT_S32_LE,
+  SPS_FORMAT_S32_BE,
+  SPS_FORMAT_AUTO,
+  SPS_FORMAT_INVALID,
+} sps_format_t;
+
+snd_pcm_t *alsa_handle = NULL;
+snd_pcm_hw_params_t *alsa_params = NULL;
+snd_pcm_sw_params_t *alsa_swparams = NULL;
+int frame_size; // in bytes for interleaved stereo
+
+
+void actual_close_alsa_device() {
+  error("actual close");
+  if (alsa_handle) {
+    int derr;
+    if ((derr = snd_pcm_hw_free(alsa_handle)))
+      error("Error %d (\"%s\") freeing the output device hardware while "
+            "closing it.",
+            derr, snd_strerror(derr));
+
+    if ((derr = snd_pcm_close(alsa_handle)))
+      error("Error %d (\"%s\") closing the output device.", derr, snd_strerror(derr));
+    alsa_handle = NULL;
+  }
+}
+
+// This array is a sequence of the output rates to be tried if automatic speed selection is
+// requested.
+// There is no benefit to upconverting the frame rate, other than for compatibility.
+// The lowest rate that the DAC is capable of is chosen.
+
+unsigned int auto_speed_output_rates[] = {
+    44100,
+    88200,
+    176400,
+    352800,
+};
+
+// This array is of all the formats known to Shairport Sync, in order of the SPS_FORMAT definitions,
+// with their equivalent alsa codes and their frame sizes.
+// If just one format is requested, then its entry is searched for in the array and checked on the
+// device
+// If auto format is requested, then each entry in turn is tried until a working format is found.
+// So, it should be in the search order.
+
+typedef struct {
+  snd_pcm_format_t alsa_code;
+  int frame_size;
+} format_record;
+
+format_record fr[] = {
+    {SND_PCM_FORMAT_UNKNOWN, 0}, // unknown
+    {SND_PCM_FORMAT_S8, 2},      {SND_PCM_FORMAT_U8, 2},      {SND_PCM_FORMAT_S16, 4},
+    {SND_PCM_FORMAT_S16_LE, 4},  {SND_PCM_FORMAT_S16_BE, 4},  {SND_PCM_FORMAT_S24, 8},
+    {SND_PCM_FORMAT_S24_LE, 8},  {SND_PCM_FORMAT_S24_BE, 8},  {SND_PCM_FORMAT_S24_3LE, 6},
+    {SND_PCM_FORMAT_S24_3BE, 6}, {SND_PCM_FORMAT_S32, 8},     {SND_PCM_FORMAT_S32_LE, 8},
+    {SND_PCM_FORMAT_S32_BE, 8},  {SND_PCM_FORMAT_UNKNOWN, 0}, // auto
+    {SND_PCM_FORMAT_UNKNOWN, 0},                              // illegal
+};
+
+// This array is the sequence of formats to be tried if automatic selection of the format is
+// requested.
+// Ideally, audio should pass through Shairport Sync unaltered, apart from occasional interpolation.
+// If the user chooses a hardware mixer, then audio could go straight through, unaltered, as signed
+// 16 bit stereo.
+// However, the user might, at any point, select an option that requires modification, such as
+// stereo to mono mixing,
+// additional volume attenuation, convolution, and so on. For this reason,
+// we look for the greatest depth the DAC is capable of, since upconverting it is completely
+// lossless.
+// If audio processing is required, then the dither that must be added will
+// be added at the lowest possible level.
+// Hence, selecting the greatest bit depth is always either beneficial or neutral.
+
+sps_format_t auto_format_check_sequence[] = {
+    SPS_FORMAT_S32,    SPS_FORMAT_S32_LE,  SPS_FORMAT_S32_BE,  SPS_FORMAT_S24, SPS_FORMAT_S24_LE,
+    SPS_FORMAT_S24_BE, SPS_FORMAT_S24_3LE, SPS_FORMAT_S24_3BE, SPS_FORMAT_S16, SPS_FORMAT_S16_LE,
+    SPS_FORMAT_S16_BE, SPS_FORMAT_S8,      SPS_FORMAT_U8,
+};
+
+const char *sps_format_description_string_array[] = {
+    "unknown", "S8",      "U8",      "S16", "S16_LE", "S16_BE", "S24",  "S24_LE",
+    "S24_BE",  "S24_3LE", "S24_3BE", "S32", "S32_LE", "S32_BE", "auto", "invalid"};
+
+const char *sps_format_description_string(sps_format_t format) {
+  if (format <= SPS_FORMAT_AUTO)
+    return sps_format_description_string_array[format];
+  else
+    return sps_format_description_string_array[SPS_FORMAT_INVALID];
+}
+
+
+int check_alsa_device() {
+  int ret, dir = 0;
+  unsigned int actual_sample_rate; // this will be given the rate requested and will be given the actual rate
+  snd_pcm_uframes_t actual_buffer_length;
+  snd_pcm_access_t access = -1;
+
+
+  ret = snd_pcm_open(&alsa_handle, card, SND_PCM_STREAM_PLAYBACK, 0);
+  if (ret < 0) {
+    if (ret == -ENOENT) {
+      error("the alsa output_device \"%s\" can not be found.", card);
+    } else {
+      char errorstring[1024];
+      strerror_r(-ret, (char *)errorstring, sizeof(errorstring));
+      error("alsaexplore: error %d (\"%s\") opening alsa device \"%s\".", ret, (char *)errorstring,
+           card);
+    }
+    return ret;
+  }
+
+  snd_pcm_hw_params_alloca(&alsa_params);
+  snd_pcm_sw_params_alloca(&alsa_swparams);
+
+  ret = snd_pcm_hw_params_any(alsa_handle, alsa_params);
+  if (ret < 0) {
+    error("audio_alsa: Broken configuration for device \"%s\": no configurations "
+        "available",
+        card);
+    return ret;
+  }
+
+  if ((snd_pcm_hw_params_set_access(alsa_handle, alsa_params, SND_PCM_ACCESS_RW_INTERLEAVED) >=
+       0)) {
+    printf("RW interleaved access is available\n");
+    access = SND_PCM_ACCESS_RW_INTERLEAVED;
+  }
+
+  if ((snd_pcm_hw_params_set_access(alsa_handle, alsa_params, SND_PCM_ACCESS_MMAP_INTERLEAVED) >=
+       0)) {
+    printf("MMAP interleaved access is available\n");
+    access = SND_PCM_ACCESS_MMAP_INTERLEAVED;
+  }
+
+  if (access == -1) {
+    error("alsaexplore: RW or MMAP interleaved access modes not available for \"%s\": %s", card,
+         snd_strerror(ret));
+    return -1;
+  }
+
+  ret = snd_pcm_hw_params_set_channels(alsa_handle, alsa_params, 2);
+  if (ret < 0) {
+    error("alsaexplore: Stereo not available for device \"%s\": %s", card,
+         snd_strerror(ret));
+    return ret;
+  }
+
+  snd_pcm_format_t sf;
+  int number_of_formats_to_try;
+  sps_format_t *formats;
+  formats = auto_format_check_sequence;
+  number_of_formats_to_try = sizeof(auto_format_check_sequence) / sizeof(sps_format_t);
+  int i = 0;
+  int format_found = 0;
+  sps_format_t trial_format = SPS_FORMAT_UNKNOWN;
+  while ((i < number_of_formats_to_try) && (format_found == 0)) {
+    trial_format = formats[i];
+    sf = fr[trial_format].alsa_code;
+    frame_size = fr[trial_format].frame_size;
+    ret = snd_pcm_hw_params_set_format(alsa_handle, alsa_params, sf);
+    if (ret == 0)
+      format_found = 1;
+    else
+      i++;
+  }
+  if (ret == 0) {
+    printf("alsaexplore: best output format is \"%s\".\n",
+          sps_format_description_string(trial_format));
+  } else {
+    error("alsaexplore: could not find an output format for device \"%s\": %s",
+         card, snd_strerror(ret));
+    return ret;
+  }
+
+  int number_of_speeds_to_try;
+  unsigned int *speeds;
+
+  speeds = auto_speed_output_rates;
+  number_of_speeds_to_try = sizeof(auto_speed_output_rates) / sizeof(int);
+
+  i = 0;
+  int speed_found = 0;
+
+  while ((i < number_of_speeds_to_try) && (speed_found == 0)) {
+    actual_sample_rate = speeds[i];
+    ret = snd_pcm_hw_params_set_rate_near(alsa_handle, alsa_params, &actual_sample_rate, &dir);
+    if (ret == 0) {
+      speed_found = 1;
+      if (actual_sample_rate != speeds[i])
+        error("alsaexplore: speed requested: %d. Speed available: %d.", speeds[i], actual_sample_rate);
+    } else {
+      i++;
+    }
+  }
+  if (ret == 0) {
+    error("alsaexplore: output speed found is %d.", actual_sample_rate);
+  } else {
+    error("alsaexplore: Could not find a suitable output rate for device \"%s\": %s",
+         card, snd_strerror(ret));
+    return ret;
+  }
+
+  ret = snd_pcm_hw_params(alsa_handle, alsa_params);
+  if (ret < 0) {
+    error("alsaexplore: Unable to set hw parameters for device \"%s\": %s.", card,
+         snd_strerror(ret));
+    return ret;
+  }
+
+  ret = snd_pcm_sw_params_current(alsa_handle, alsa_swparams);
+  if (ret < 0) {
+    error("alsaexplore: Unable to get current sw parameters for device \"%s\": "
+         "%s.",
+         card, snd_strerror(ret));
+    return ret;
+  }
+
+  ret = snd_pcm_sw_params_set_tstamp_mode(alsa_handle, alsa_swparams, SND_PCM_TSTAMP_ENABLE);
+  if (ret < 0) {
+    error("alsaexplore: Can't enable timestamp mode of device: \"%s\": %s.", card,
+         snd_strerror(ret));
+    return ret;
+  }
+
+  /* write the sw parameters */
+  ret = snd_pcm_sw_params(alsa_handle, alsa_swparams);
+  if (ret < 0) {
+    error("alsaexplore: Unable to set software parameters of device: \"%s\": %s.", card,
+         snd_strerror(ret));
+    return ret;
+  }
+  return 0;
+}
+
+
+
 static int pcms(int card_number)
 // set card_number to -1 for all cards
 {
@@ -1815,7 +2066,7 @@ static int pcms(int card_number)
 
 static int cards(void) {
   snd_ctl_t *handle;
-  int card_number, err, dev, idx;
+  int card_number, err, dev;
   snd_ctl_card_info_t *info;
   snd_pcm_info_t *pcminfo;
   snd_ctl_card_info_alloca(&info);
@@ -1872,6 +2123,7 @@ static int cards(void) {
       sprintf(card, "hw:%i", card_number);
       selems_if_has_db_playback(0, 0); // omit mixers that also have a capture part
       selems_if_has_db_playback(0, 1); // include mixers that also have a capture part
+      check_alsa_device();
     }
     snd_ctl_close(handle);
   next_card:
