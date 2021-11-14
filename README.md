@@ -5,7 +5,7 @@
 ```
 ### Download and Build
 ```
-$ git clone git@github.com:mikebrady/alsaexplore.git
+$ git clone https://github.com/mikebrady/alsaexplore.git
 $ cd alsaexplore
 $ autoreconf -fi
 $ make
