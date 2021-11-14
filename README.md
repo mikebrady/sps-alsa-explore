@@ -1,7 +1,7 @@
 ## Building
 ### Prerequisites
 ```
-# apt install build-essential git autoconf automake libtool libasound2-dev
+# apt install --no-install-recommends build-essential git autoconf automake libtool libasound2-dev
 ```
 ### Download and Build
 ```
