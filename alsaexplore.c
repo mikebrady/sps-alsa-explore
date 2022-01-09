@@ -53,8 +53,10 @@ void error(const char *fmt, ...) {
   va_end(va);
 }
 
-static int selems_if_has_db_playback(int include_mixers_with_capture, int quiet) {
+static int selems_if_has_db_playback(int include_mixers_with_capture, char *firstPrompt,
+                                     char *subsequentPrompt) {
   int result = 0;
+  int firstPromptUsed = 0;
   snd_mixer_t *handle;
   snd_mixer_selem_id_t *sid;
   snd_mixer_elem_t *elem;
@@ -62,33 +64,39 @@ static int selems_if_has_db_playback(int include_mixers_with_capture, int quiet)
   long min_db, max_db;
 
   if ((result = snd_mixer_open(&handle, 0)) < 0) {
-    if (quiet == 0)
+    if (firstPrompt != NULL)
       error("Mixer %s open error: %s", card, snd_strerror(result));
   } else {
     if ((result = snd_mixer_attach(handle, card)) < 0) {
-      if (quiet == 0)
+      if (firstPrompt != NULL)
         error("Mixer attach %s error: %s", card, snd_strerror(result));
     } else {
       if ((result = snd_mixer_selem_register(handle, NULL, NULL)) < 0) {
-        if (quiet == 0)
+        if (firstPrompt != NULL)
           error("Mixer register error: %s", snd_strerror(result));
       } else {
         if ((result = snd_mixer_load(handle)) < 0) {
-          if (quiet == 0)
+          if (firstPrompt != NULL)
             error("Mixer %s load error: %s", card, snd_strerror(result));
         } else {
           for (elem = snd_mixer_first_elem(handle); elem; elem = snd_mixer_elem_next(elem)) {
             if (snd_mixer_selem_is_active(elem)) {
-              int has_capture_elements =
-                  snd_mixer_selem_has_common_volume(elem) || snd_mixer_selem_has_capture_volume(elem) ||
-                  snd_mixer_selem_has_common_switch(elem) || snd_mixer_selem_has_capture_switch(elem);
+              int has_capture_elements = snd_mixer_selem_has_common_volume(elem) ||
+                                         snd_mixer_selem_has_capture_volume(elem) ||
+                                         snd_mixer_selem_has_common_switch(elem) ||
+                                         snd_mixer_selem_has_capture_switch(elem);
 
               if (((include_mixers_with_capture == 1) && has_capture_elements) ||
                   ((include_mixers_with_capture == 0) && (!has_capture_elements))) {
                 if (snd_mixer_selem_get_playback_dB_range(elem, &min_db, &max_db) == 0) {
                   snd_mixer_selem_get_id(elem, sid);
-                  if (quiet == 0)
-                    printf("                       \"%s\"\n", snd_mixer_selem_id_get_name(sid));
+                  if (firstPrompt != NULL) {
+                    printf("%s\"%s\"\n",
+                           (firstPromptUsed != 0) && (subsequentPrompt != NULL) ? subsequentPrompt
+                                                                                : firstPrompt,
+                           snd_mixer_selem_id_get_name(sid));
+                    firstPromptUsed = 1;
+                  }
                   result++;
                 }
               }
@@ -125,7 +133,6 @@ snd_pcm_t *alsa_handle = NULL;
 snd_pcm_hw_params_t *alsa_params = NULL;
 snd_pcm_sw_params_t *alsa_swparams = NULL;
 int frame_size; // in bytes for interleaved stereo
-
 
 // This array is a sequence of the output rates to be tried if automatic speed selection is
 // requested.
@@ -192,10 +199,104 @@ const char *sps_format_description_string(sps_format_t format) {
     return sps_format_description_string_array[SPS_FORMAT_INVALID];
 }
 
+int check_alsa_device_with_settings(int quiet, snd_pcm_format_t sample_format,
+                                    unsigned int sample_rate) {
+  int result = -1;
+  int ret, dir = 0;
+  ret = snd_pcm_open(&alsa_handle, card, SND_PCM_STREAM_PLAYBACK, 0);
+  if (ret == 0) {
+    snd_pcm_hw_params_alloca(&alsa_params);
+    snd_pcm_sw_params_alloca(&alsa_swparams);
+    ret = snd_pcm_hw_params_any(alsa_handle, alsa_params);
+    if (ret == 0) {
+
+      if ((snd_pcm_hw_params_set_access(alsa_handle, alsa_params, SND_PCM_ACCESS_RW_INTERLEAVED) <
+           0) ||
+          (snd_pcm_hw_params_set_access(alsa_handle, alsa_params,
+                                        SND_PCM_ACCESS_MMAP_INTERLEAVED) == 0)) {
+        ret = snd_pcm_hw_params_set_channels(alsa_handle, alsa_params, 2);
+        if (ret == 0) {
+          ret = snd_pcm_hw_params_set_format(alsa_handle, alsa_params, sample_format);
+          if (ret == 0) {
+            unsigned int actual_sample_rate = sample_rate;
+            ret = snd_pcm_hw_params_set_rate_near(alsa_handle, alsa_params, &actual_sample_rate,
+                                                  &dir);
+            if (ret == 0) {
+              ret = snd_pcm_hw_params(alsa_handle, alsa_params);
+              if (ret == 0) {
+                ret = snd_pcm_sw_params_current(alsa_handle, alsa_swparams);
+                if (ret == 0) {
+                  ret = snd_pcm_sw_params_set_tstamp_mode(alsa_handle, alsa_swparams,
+                                                          SND_PCM_TSTAMP_ENABLE);
+                  if (ret == 0) {
+                    /* write the sw parameters */
+                    ret = snd_pcm_sw_params(alsa_handle, alsa_swparams);
+                    if (ret == 0) {
+                      result = 0; // success
+                    } else {
+                      if (quiet == 0)
+                        error("unable to set software parameters of device: \"%s\": %s.", card,
+                              snd_strerror(ret));
+                    }
+                  } else {
+                    if (quiet == 0)
+                      error("can not enable timestamp mode of device: \"%s\": %s.", card,
+                            snd_strerror(ret));
+                  }
+                } else {
+                  if (quiet == 0)
+                    error("unable to get software parameters for device \"%s\": "
+                          "%s.",
+                          card, snd_strerror(ret));
+                }
+              } else {
+                if (quiet == 0)
+                  error("unable to set hardware parameters for device \"%s\": %s.", card,
+                        snd_strerror(ret));
+              }
+            } else {
+              if (quiet == 0)
+                error("could not find a suitable output rate for device \"%s\": %s", card,
+                      snd_strerror(ret));
+            }
+          } else {
+            if (quiet == 0)
+              error("could not find an output format for device \"%s\": %s", card,
+                    snd_strerror(ret));
+          }
+        } else {
+          if (quiet == 0)
+            error("stereo output not available for device \"%s\": %s", card, snd_strerror(ret));
+        }
+      } else {
+        if (quiet == 0)
+          error("interleaved access not available for device \"%s\": %s", card, snd_strerror(ret));
+      }
+    } else {
+      if (quiet == 0)
+        error("broken configuration for device \"%s\": no configurations "
+              "available",
+              card);
+    }
+    // now close the device
+    snd_pcm_close(alsa_handle);
+  } else {
+    if (ret == -ENOENT) {
+      if (quiet == 0)
+        error("the alsa output_device \"%s\" can not be found.", card);
+    } else if (quiet == 0) {
+      char errorstring[1024];
+      strerror_r(-ret, (char *)errorstring, sizeof(errorstring));
+      error("error %d (\"%s\") opening alsa device \"%s\".", ret, (char *)errorstring, card);
+    }
+  }
+  return result;
+}
 
 int check_alsa_device(int quiet) {
   int ret, dir = 0;
-  unsigned int actual_sample_rate; // this will be given the rate requested and will be given the actual rate
+  unsigned int
+      actual_sample_rate; // this will be given the rate requested and will be given the actual rate
 
   ret = snd_pcm_open(&alsa_handle, card, SND_PCM_STREAM_PLAYBACK, 0);
   if (ret < 0) {
@@ -205,8 +306,7 @@ int check_alsa_device(int quiet) {
     } else if (quiet == 0) {
       char errorstring[1024];
       strerror_r(-ret, (char *)errorstring, sizeof(errorstring));
-      error("error %d (\"%s\") opening alsa device \"%s\".", ret, (char *)errorstring,
-           card);
+      error("error %d (\"%s\") opening alsa device \"%s\".", ret, (char *)errorstring, card);
     }
     return -1; // alsa handle not allocated so we're okay
   }
@@ -218,25 +318,23 @@ int check_alsa_device(int quiet) {
   if (ret < 0) {
     if (quiet == 0)
       error("broken configuration for device \"%s\": no configurations "
-        "available",
-        card);
+            "available",
+            card);
     return -1;
   }
 
-  if ((snd_pcm_hw_params_set_access(alsa_handle, alsa_params, SND_PCM_ACCESS_RW_INTERLEAVED) <
-       0) && (snd_pcm_hw_params_set_access(alsa_handle, alsa_params, SND_PCM_ACCESS_MMAP_INTERLEAVED) >=
+  if ((snd_pcm_hw_params_set_access(alsa_handle, alsa_params, SND_PCM_ACCESS_RW_INTERLEAVED) < 0) &&
+      (snd_pcm_hw_params_set_access(alsa_handle, alsa_params, SND_PCM_ACCESS_MMAP_INTERLEAVED) >=
        0)) {
     if (quiet == 0)
-      error("interleaved access not available for device \"%s\": %s", card,
-         snd_strerror(ret));
+      error("interleaved access not available for device \"%s\": %s", card, snd_strerror(ret));
     return -1;
   }
 
   ret = snd_pcm_hw_params_set_channels(alsa_handle, alsa_params, 2);
   if (ret < 0) {
     if (quiet == 0)
-      error("stereo output not available for device \"%s\": %s", card,
-         snd_strerror(ret));
+      error("stereo output not available for device \"%s\": %s", card, snd_strerror(ret));
     return -1;
   }
 
@@ -261,8 +359,7 @@ int check_alsa_device(int quiet) {
   if (ret == 0) {
   } else {
     if (quiet == 0)
-      error("could not find an output format for device \"%s\": %s",
-         card, snd_strerror(ret));
+      error("could not find an output format for device \"%s\": %s", card, snd_strerror(ret));
     return -1;
   }
 
@@ -288,21 +385,18 @@ int check_alsa_device(int quiet) {
     // error("alsaexplore: output speed found is %d.", actual_sample_rate);
   } else {
     if (quiet == 0)
-      error("could not find a suitable output rate for device \"%s\": %s",
-         card, snd_strerror(ret));
+      error("could not find a suitable output rate for device \"%s\": %s", card, snd_strerror(ret));
     return -1;
   }
 
   if (quiet == 0)
-    printf("Automatic Output Format:  \"%s/%d\".\n",
-          sps_format_description_string(trial_format), actual_sample_rate);
-
+    printf("Automatic Output Format:  \"%s/%d\".\n", sps_format_description_string(trial_format),
+           actual_sample_rate);
 
   ret = snd_pcm_hw_params(alsa_handle, alsa_params);
   if (ret < 0) {
     if (quiet == 0)
-      error("unable to set hardware parameters for device \"%s\": %s.", card,
-         snd_strerror(ret));
+      error("unable to set hardware parameters for device \"%s\": %s.", card, snd_strerror(ret));
     return -1;
   }
 
@@ -310,16 +404,15 @@ int check_alsa_device(int quiet) {
   if (ret < 0) {
     if (quiet == 0)
       error("unable to get software parameters for device \"%s\": "
-         "%s.",
-         card, snd_strerror(ret));
+            "%s.",
+            card, snd_strerror(ret));
     return -1;
   }
 
   ret = snd_pcm_sw_params_set_tstamp_mode(alsa_handle, alsa_swparams, SND_PCM_TSTAMP_ENABLE);
   if (ret < 0) {
     if (quiet == 0)
-      error("can not enable timestamp mode of device: \"%s\": %s.", card,
-         snd_strerror(ret));
+      error("can not enable timestamp mode of device: \"%s\": %s.", card, snd_strerror(ret));
     return -1;
   }
 
@@ -327,13 +420,11 @@ int check_alsa_device(int quiet) {
   ret = snd_pcm_sw_params(alsa_handle, alsa_swparams);
   if (ret < 0) {
     if (quiet == 0)
-      error("unable to set software parameters of device: \"%s\": %s.", card,
-         snd_strerror(ret));
+      error("unable to set software parameters of device: \"%s\": %s.", card, snd_strerror(ret));
     return -1;
   }
   return 0;
 }
-
 
 static int cards(void) {
   snd_ctl_t *handle;
@@ -376,14 +467,23 @@ static int cards(void) {
       printf("ALSA Hardware Device:  \"hw:CARD=%s,DEV=%i\"\n", snd_ctl_card_info_get_id(info), dev);
       printf("  Short Name:          ");
       if (dev > 0)
-        printf("\"hw:%i,%i\"\n",card_number, dev);
+        printf("\"hw:%i,%i\"\n", card_number, dev);
       else
-        printf("\"hw:%i\"\n",card_number);
+        printf("\"hw:%i\"\n", card_number);
       if (check_alsa_device(1) == 0) {
-        if ((selems_if_has_db_playback(0,1)) || (selems_if_has_db_playback(1,1))) {
-          printf("  dB Mixers:\n");
-          selems_if_has_db_playback(0,0); // omit mixers that also have a capture part
-          selems_if_has_db_playback(1,0); // include mixers that also have a capture part
+        if ((selems_if_has_db_playback(0, NULL, NULL)) ||
+            (selems_if_has_db_playback(1, NULL, NULL))) {
+
+          char fp[] = "  dB Mixers:           ";
+          char sp[] = "                       ";
+          int found = selems_if_has_db_playback(0, fp,
+                                                sp); // omit mixers that also have a capture part
+          if (found > 0)
+            selems_if_has_db_playback(1, sp,
+                                      sp); // include mixers that also have a capture part
+          else
+            selems_if_has_db_playback(1, fp,
+                                      sp); // include mixers that also have a capture part
         } else {
           printf("  No Mixers.\n");
         }
@@ -391,8 +491,8 @@ static int cards(void) {
         printf("  Shairport Sync can not use this device.\n");
       }
 
-
-      // printf("Output Device hw:%i: %s [%s], device %i: %s [%s]\n", card_number, snd_ctl_card_info_get_id(info),
+      // printf("Output Device hw:%i: %s [%s], device %i: %s [%s]\n", card_number,
+      // snd_ctl_card_info_get_id(info),
       //       snd_ctl_card_info_get_name(info), dev, snd_pcm_info_get_id(pcminfo),
       //       snd_pcm_info_get_name(pcminfo));
       /*
@@ -420,5 +520,5 @@ static int cards(void) {
 }
 
 int main(__attribute__((unused)) int argc, __attribute__((unused)) char *argv[]) {
-    return cards() ? 1 : 0;
+  return cards() ? 1 : 0;
 }
