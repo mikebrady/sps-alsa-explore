@@ -8,6 +8,7 @@
 $ git clone https://github.com/mikebrady/alsaexplore.git
 $ cd alsaexplore
 $ autoreconf -fi
+$ ./configure
 $ make
 ```
 ## Using
