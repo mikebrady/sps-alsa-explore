@@ -409,7 +409,7 @@ static int cards(void) {
             inform("     Rate              Format");
             check_alsa_device(0, 1);
           } else {
-            inform("    Rates and Formats for Shairport Sync (best first):");
+            inform("    Rates and Formats for Shairport Sync (\"auto\" selection first):");
             inform("     Rate              Formats");
             check_alsa_device(0, 0);
           }
