@@ -290,7 +290,7 @@ int check_alsa_device_with_settings(int quiet, snd_pcm_format_t sample_format,
   return result;
 }
 
-int check_alsa_device(int quiet) {
+int check_alsa_device(int quiet, int stop_on_first_success) {
   int response = 0;
   int number_of_formats_to_try = sizeof(format_check_sequence) / sizeof(sps_format_t);
   int number_of_speeds_to_try = sizeof(auto_speed_output_rates) / sizeof(int);
@@ -330,13 +330,13 @@ int check_alsa_device(int quiet) {
         //  inform("%d, %s", sample_rate, desc);
         response++;
       }
-    } while ((j < number_of_formats_to_try) && (response >= 0));
+    } while ((j < number_of_formats_to_try) && (response >= 0) && (!((stop_on_first_success !=0) && (response == 1))));
     if ((number_of_successes > 0) && (quiet == 0))
       inform(information_string);
     if (ret == -1)
       response = -1;
     i++;
-  } while ((i < number_of_speeds_to_try) && (response >= 0));
+  } while ((i < number_of_speeds_to_try) && (response >= 0) && (!((stop_on_first_success !=0) && (response == 1))));
 
   return response; // -1 if a problem arose, number of successes otherwise
 }
@@ -380,8 +380,8 @@ static int cards(void) {
         continue;
       }
 
-      if ((check_alsa_device(1) > 0) || (extended_output != 0)) {
-        inform("ALSA Hardware Device:  \"hw:CARD=%s,DEV=%i\"", snd_ctl_card_info_get_id(info), dev);
+      if ((check_alsa_device(1, 0) > 0) || (extended_output != 0)) {
+        inform(">> Device:  \"hw:CARD=%s,DEV=%i\"", snd_ctl_card_info_get_id(info), dev);
         if (dev > 0)
           inform("  Short Name:          \"hw:%i,%i\"", card_number, dev);
         else
@@ -392,7 +392,7 @@ static int cards(void) {
           inform("    Device %i PCM Name: \"%s\"", dev, snd_pcm_info_get_name(pcminfo));
         }
 
-        if (check_alsa_device(1) > 0) {
+        if (check_alsa_device(1, 0) > 0) {
           if ((selems_if_has_db_playback(0, NULL, NULL)) ||
               (selems_if_has_db_playback(1, NULL, NULL))) {
 
@@ -410,10 +410,14 @@ static int cards(void) {
             if (extended_output != 0)
               inform("    No mixers usable by Shairport Sync.");
           }
-          if (extended_output != 0) {
+          if (extended_output == 0) {
+            inform("  Automatic Rate and Format choice:");
+            inform("     FPS               Format");
+            check_alsa_device(0, 1);
+         } else {
             inform("    Rates and Formats for Shairport Sync (best first):");
             inform("     FPS               Formats");
-            check_alsa_device(0);
+            check_alsa_device(0, 0);
           }
         } else {
           inform("  Shairport Sync can not use this device.");
