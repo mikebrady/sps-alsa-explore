@@ -293,31 +293,41 @@ int check_alsa_device(int quiet) {
   int response = 0;
   int number_of_formats_to_try = sizeof(format_check_sequence) / sizeof(sps_format_t);
   int number_of_speeds_to_try = sizeof(auto_speed_output_rates) / sizeof(int);
-
   int ret;
   int i = 0;
   // pick speeds
   do {
-    // pick a speed
+    // pick next speed to check
       unsigned int sample_rate = auto_speed_output_rates[i];
+      int number_of_successes = 0;
+      char information_string[1024];
+      information_string[0] = '\0';
+      snprintf(information_string, sizeof(information_string) -1 - strlen(information_string), "    %-6u", sample_rate);
     // pick formats
     int j = 0;
     do {
-      // pick a format
+      // pick next format to check
       snd_pcm_format_t sample_format = fr[format_check_sequence[j]].alsa_code;
       const char *desc = sps_format_description_string_array[format_check_sequence[j]];
       // debug(1, "check %d, %s", sample_rate, desc );
-      ret = check_alsa_device_with_settings(0, sample_format, sample_rate);
+      ret = check_alsa_device_with_settings(quiet, sample_format, sample_rate);
       if (ret == -1)
         response = -1;
       j++;
       if (ret == 0) {
-        debug(1, "    Setting %d, %s succeeded.", sample_rate, desc);
-        if (quiet == 0)
-          inform("%d, %s", sample_rate, desc);
+        if (number_of_successes == 0)
+          snprintf(information_string+strlen(information_string), sizeof(information_string) - 1 - strlen(information_string), "             %s", desc);
+        else
+          snprintf(information_string+strlen(information_string), sizeof(information_string) - 1 - strlen(information_string), ",%s", desc);
+        number_of_successes++;
+        debug(1, "    So far: \"%s\".", information_string);
+        // if (quiet == 0)
+        //  inform("%d, %s", sample_rate, desc);
         response++;
       }
     } while ((j < number_of_formats_to_try) && (response >= 0));
+      if ((number_of_successes > 0) && (quiet == 0))
+        inform(information_string);
     if (ret == -1)
       response = -1;
     i++;
@@ -390,6 +400,9 @@ static int cards(void) {
         } else {
           inform("  No Mixers.");
         }
+        inform("    Rates and Formats:");
+        inform("    FPS                Formats");
+        check_alsa_device(0);
       } else {
         inform("  Shairport Sync can not use this device.");
       }
