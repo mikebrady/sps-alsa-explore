@@ -5,8 +5,8 @@
 ```
 ### Download and Build
 ```
-$ git clone https://github.com/mikebrady/alsaexplore.git
-$ cd alsaexplore
+$ git clone https://github.com/mikebrady/sps-alsa-explore.git
+$ cd sps-alsa-explore
 $ autoreconf -fi
 $ ./configure
 $ make
@@ -14,5 +14,5 @@ $ make
 ## Using
 To run it from the directory in which it was compiled:
 ```
-$ ./alsaexplore
+$ ./sps-alsa-explore
 ```
