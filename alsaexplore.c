@@ -1,4 +1,4 @@
-// ALSAExplore is based on amixer, license below.
+// ALSAExplore is based on amixer v1.0.3, license below.
 
 /*
  *   ALSA command line mixer utility
@@ -21,7 +21,7 @@
  */
 
 #include "alsaexplore.h"
-#include "config.h"
+#include "gitversion.h"
 #include <alsa/asoundlib.h>
 #include <assert.h>
 #include <ctype.h>
@@ -65,7 +65,7 @@ static int selems_if_has_db_playback(int include_mixers_with_capture, char *firs
 
   if ((result = snd_mixer_open(&handle, 0)) < 0) {
     if (firstPrompt != NULL)
-      error("Mixer %s open error: %s", card, snd_strerror(result));
+      debug(1, "Mixer %s open error: %s", card, snd_strerror(result));
   } else {
     if ((result = snd_mixer_attach(handle, card)) < 0) {
       if (firstPrompt != NULL)
@@ -210,7 +210,7 @@ int check_alsa_device_with_settings(int quiet, snd_pcm_format_t sample_format,
     ret = snd_pcm_hw_params_any(alsa_handle, alsa_params);
     if (ret == 0) {
 
-      if ((snd_pcm_hw_params_set_access(alsa_handle, alsa_params, SND_PCM_ACCESS_RW_INTERLEAVED) <
+      if ((snd_pcm_hw_params_set_access(alsa_handle, alsa_params, SND_PCM_ACCESS_RW_INTERLEAVED) ==
            0) ||
           (snd_pcm_hw_params_set_access(alsa_handle, alsa_params,
                                         SND_PCM_ACCESS_MMAP_INTERLEAVED) == 0)) {
@@ -256,12 +256,12 @@ int check_alsa_device_with_settings(int quiet, snd_pcm_format_t sample_format,
               }
             } else {
               if (quiet == 0)
-                error("could not find a suitable output rate for device \"%s\": %s", card,
+                error("could not set output rate %u for device \"%s\": %s", actual_sample_rate, card,
                       snd_strerror(ret));
             }
           } else {
             if (quiet == 0)
-              error("could not find an output format for device \"%s\": %s", card,
+              error("could not set output format %d for device \"%s\": %s", sample_format, card,
                     snd_strerror(ret));
           }
         } else {
@@ -294,135 +294,33 @@ int check_alsa_device_with_settings(int quiet, snd_pcm_format_t sample_format,
 }
 
 int check_alsa_device(int quiet) {
-  int ret, dir = 0;
-  unsigned int
-      actual_sample_rate; // this will be given the rate requested and will be given the actual rate
-
-  ret = snd_pcm_open(&alsa_handle, card, SND_PCM_STREAM_PLAYBACK, 0);
-  if (ret < 0) {
-    if (ret == -ENOENT) {
-      if (quiet == 0)
-        error("the alsa output_device \"%s\" can not be found.", card);
-    } else if (quiet == 0) {
-      char errorstring[1024];
-      strerror_r(-ret, (char *)errorstring, sizeof(errorstring));
-      error("error %d (\"%s\") opening alsa device \"%s\".", ret, (char *)errorstring, card);
-    }
-    return -1; // alsa handle not allocated so we're okay
-  }
-
-  snd_pcm_hw_params_alloca(&alsa_params);
-  snd_pcm_sw_params_alloca(&alsa_swparams);
-
-  ret = snd_pcm_hw_params_any(alsa_handle, alsa_params);
-  if (ret < 0) {
-    if (quiet == 0)
-      error("broken configuration for device \"%s\": no configurations "
-            "available",
-            card);
-    return -1;
-  }
-
-  if ((snd_pcm_hw_params_set_access(alsa_handle, alsa_params, SND_PCM_ACCESS_RW_INTERLEAVED) < 0) &&
-      (snd_pcm_hw_params_set_access(alsa_handle, alsa_params, SND_PCM_ACCESS_MMAP_INTERLEAVED) >=
-       0)) {
-    if (quiet == 0)
-      error("interleaved access not available for device \"%s\": %s", card, snd_strerror(ret));
-    return -1;
-  }
-
-  ret = snd_pcm_hw_params_set_channels(alsa_handle, alsa_params, 2);
-  if (ret < 0) {
-    if (quiet == 0)
-      error("stereo output not available for device \"%s\": %s", card, snd_strerror(ret));
-    return -1;
-  }
-
-  snd_pcm_format_t sf;
+  // pick formats
   int number_of_formats_to_try;
   sps_format_t *formats;
   formats = auto_format_check_sequence;
   number_of_formats_to_try = sizeof(auto_format_check_sequence) / sizeof(sps_format_t);
+  int ret;
   int i = 0;
-  int format_found = 0;
-  sps_format_t trial_format = SPS_FORMAT_UNKNOWN;
-  while ((i < number_of_formats_to_try) && (format_found == 0)) {
-    trial_format = formats[i];
-    sf = fr[trial_format].alsa_code;
-    frame_size = fr[trial_format].frame_size;
-    ret = snd_pcm_hw_params_set_format(alsa_handle, alsa_params, sf);
-    if (ret == 0)
-      format_found = 1;
-    else
+  do {
+    // pick a format
+    snd_pcm_format_t sample_format = fr[formats[i]].alsa_code;
+    const char *desc = sps_format_description_string_array[formats[i]];
+    // pick speeds
+    int number_of_speeds_to_try = sizeof(auto_speed_output_rates) / sizeof(int);
+    int j = 0;
+    do {
+      // pick a speed
+      unsigned int sample_rate = auto_speed_output_rates[j];
+      ret = check_alsa_device_with_settings(0, sample_format, sample_rate);
+      if (ret != 0)
+        j++;
+      if (ret == 0)
+        error("Success with format %s, speed %d.", desc, sample_rate);
+    } while ((ret != 0) && (j < number_of_speeds_to_try));
+    if (ret != 0)
       i++;
-  }
-  if (ret == 0) {
-  } else {
-    if (quiet == 0)
-      error("could not find an output format for device \"%s\": %s", card, snd_strerror(ret));
-    return -1;
-  }
-
-  int number_of_speeds_to_try;
-  unsigned int *speeds;
-
-  speeds = auto_speed_output_rates;
-  number_of_speeds_to_try = sizeof(auto_speed_output_rates) / sizeof(int);
-
-  i = 0;
-  int speed_found = 0;
-
-  while ((i < number_of_speeds_to_try) && (speed_found == 0)) {
-    actual_sample_rate = speeds[i];
-    ret = snd_pcm_hw_params_set_rate_near(alsa_handle, alsa_params, &actual_sample_rate, &dir);
-    if (ret == 0) {
-      speed_found = 1;
-    } else {
-      i++;
-    }
-  }
-  if (ret == 0) {
-    // error("alsaexplore: output speed found is %d.", actual_sample_rate);
-  } else {
-    if (quiet == 0)
-      error("could not find a suitable output rate for device \"%s\": %s", card, snd_strerror(ret));
-    return -1;
-  }
-
-  if (quiet == 0)
-    printf("Automatic Output Format:  \"%s/%d\".\n", sps_format_description_string(trial_format),
-           actual_sample_rate);
-
-  ret = snd_pcm_hw_params(alsa_handle, alsa_params);
-  if (ret < 0) {
-    if (quiet == 0)
-      error("unable to set hardware parameters for device \"%s\": %s.", card, snd_strerror(ret));
-    return -1;
-  }
-
-  ret = snd_pcm_sw_params_current(alsa_handle, alsa_swparams);
-  if (ret < 0) {
-    if (quiet == 0)
-      error("unable to get software parameters for device \"%s\": "
-            "%s.",
-            card, snd_strerror(ret));
-    return -1;
-  }
-
-  ret = snd_pcm_sw_params_set_tstamp_mode(alsa_handle, alsa_swparams, SND_PCM_TSTAMP_ENABLE);
-  if (ret < 0) {
-    if (quiet == 0)
-      error("can not enable timestamp mode of device: \"%s\": %s.", card, snd_strerror(ret));
-    return -1;
-  }
-
-  /* write the sw parameters */
-  ret = snd_pcm_sw_params(alsa_handle, alsa_swparams);
-  if (ret < 0) {
-    if (quiet == 0)
-      error("unable to set software parameters of device: \"%s\": %s.", card, snd_strerror(ret));
-    return -1;
-  }
+  } while ((ret != 0) && (i < number_of_formats_to_try));
+  
   return 0;
 }
 
@@ -519,6 +417,40 @@ static int cards(void) {
   return 0;
 }
 
-int main(__attribute__((unused)) int argc, __attribute__((unused)) char *argv[]) {
+int main(int argc, char *argv[]) {
+  int debug_level = 0;
+  int i;
+  for (i = 1; i < argc; ++i) {
+    if (argv[i][0] == '-') {
+      if (strcmp(argv[i] + 1, "V") == 0) {
+#ifdef CONFIG_USE_GIT_VERSION_STRING
+        if (git_version_string[0] != '\0')
+          fprintf(stdout, "Version: %s.\n", git_version_string);
+        else
+#endif
+          fprintf(stdout, "Version: %s.\n", VERSION);
+        exit(EXIT_SUCCESS);
+      } else if (strcmp(argv[i] + 1, "vvv") == 0) {
+        debug_level = 3;
+      } else if (strcmp(argv[i] + 1, "vv") == 0) {
+        debug_level = 2;
+      } else if (strcmp(argv[i] + 1, "v") == 0) {
+        debug_level = 1;
+      } else if (strcmp(argv[i] + 1, "h") == 0) {
+        fprintf(stdout, "    -V     print version,\n"
+                        "    -v     verbose log,\n"
+                        "    -vv    more verbose log,\n"
+                        "    -vvv   very verbose log,\n"
+                        "    -h     this help text.\n");
+        exit(EXIT_SUCCESS);
+      } else {
+        fprintf(stdout, "%s -- unknown option. Program terminated.\n", argv[0]);
+        exit(EXIT_FAILURE);
+      }
+    }
+  }
+  debug_init(debug_level, 0, 1, 1);
+  debug(1, "startup.");
+
   return cards() ? 1 : 0;
 }

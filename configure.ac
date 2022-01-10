@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.50])
-AC_INIT([alsaexplore], [1.0.3], [4265913+mikebrady@users.noreply.github.com])
+AC_INIT([alsaexplore], [1.1], [4265913+mikebrady@users.noreply.github.com])
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([alsaexplore.c])
 AC_CONFIG_HEADERS([config.h])
@@ -11,6 +11,12 @@ AC_CONFIG_HEADERS([config.h])
 AC_PROG_CC
 
 PKG_PROG_PKG_CONFIG([0.9.0])
+
+AC_CHECK_PROGS([GIT], [git])
+if test -n "$GIT" && test -e ".git/index" ; then
+  AC_DEFINE([CONFIG_USE_GIT_VERSION_STRING], 1, [Use the version string produced by running 'git describe --dirty'.])
+fi
+AM_CONDITIONAL([USE_GIT_VERSION], [test -n "$GIT" && test -e ".git/index" ])
 
 # Checks for libraries.
 AC_CHECK_LIB([m],[exp], , AC_MSG_ERROR(maths library needed))
