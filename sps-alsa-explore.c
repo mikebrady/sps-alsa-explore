@@ -214,7 +214,7 @@ int check_alsa_device_with_settings(snd_pcm_format_t sample_format,
             unsigned int actual_sample_rate = sample_rate;
             ret = snd_pcm_hw_params_set_rate_near(alsa_handle, alsa_params, &actual_sample_rate,
                                                   &dir);
-            if (ret == 0) {
+            if ((ret == 0) && (actual_sample_rate == sample_rate)) {
               ret = snd_pcm_hw_params(alsa_handle, alsa_params);
               if (ret == 0) {
                 ret = snd_pcm_sw_params_current(alsa_handle, alsa_swparams);
