@@ -214,6 +214,8 @@ int check_alsa_device_with_settings(snd_pcm_format_t sample_format,
             unsigned int actual_sample_rate = sample_rate;
             ret = snd_pcm_hw_params_set_rate_near(alsa_handle, alsa_params, &actual_sample_rate,
                                                   &dir);
+            if ((ret == 0) && (actual_sample_rate != sample_rate))
+              debug(1,"Sample rate set, %u, is different to sample rate requested, %u.", actual_sample_rate, sample_rate);
             if ((ret == 0) && (actual_sample_rate == sample_rate)) {
               ret = snd_pcm_hw_params(alsa_handle, alsa_params);
               if (ret == 0) {
