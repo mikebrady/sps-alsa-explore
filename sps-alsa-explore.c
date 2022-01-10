@@ -21,7 +21,7 @@
  */
 
 // extended and modified (C) 2021-2022 by Mike Brady <4265913+mikebrady@users.noreply.github.com>
- 
+
 #include "sps-alsa-explore.h"
 #include "gitversion.h"
 #include <alsa/asoundlib.h>
@@ -189,10 +189,11 @@ const char *sps_format_description_string(sps_format_t format) {
     return sps_format_description_string_array[SPS_FORMAT_INVALID];
 }
 
-int check_alsa_device_with_settings(int quiet, snd_pcm_format_t sample_format,
+int check_alsa_device_with_settings(snd_pcm_format_t sample_format,
                                     unsigned int sample_rate) {
 
-  // returns 0 if successful, -2 if can't set format, -3 if can't set speed, -1 otherwise
+  // returns 0 if successful, -2 if can't set format, -3 if can't set speed
+  // -4 if device is busy, -1 otherwise
   int result = -1;
   int ret, dir = 0;
   ret = snd_pcm_open(&alsa_handle, card, SND_PCM_STREAM_PLAYBACK, 0);
@@ -226,62 +227,55 @@ int check_alsa_device_with_settings(int quiet, snd_pcm_format_t sample_format,
                     if (ret == 0) {
                       result = 0; // success
                     } else {
-                      if (quiet == 0)
-                        debug(1, "unable to set software parameters of device: \"%s\": %s.", card,
-                              snd_strerror(ret));
+                      debug(1, "unable to set software parameters of device: \"%s\": %s.", card,
+                            snd_strerror(ret));
                     }
                   } else {
-                    if (quiet == 0)
-                      debug(1, "can not enable timestamp mode of device: \"%s\": %s.", card,
-                            snd_strerror(ret));
+                    debug(1, "can not enable timestamp mode of device: \"%s\": %s.", card,
+                          snd_strerror(ret));
                   }
                 } else {
-                  if (quiet == 0)
-                    debug(1,
-                          "unable to get software parameters for device \"%s\": "
-                          "%s.",
-                          card, snd_strerror(ret));
+
+                  debug(1,
+                        "unable to get software parameters for device \"%s\": "
+                        "%s.",
+                        card, snd_strerror(ret));
                 }
               } else {
-                if (quiet == 0)
-                  debug(1, "unable to set hardware parameters for device \"%s\": %s.", card,
-                        snd_strerror(ret));
+                debug(1, "unable to set hardware parameters for device \"%s\": %s.", card,
+                      snd_strerror(ret));
               }
             } else {
-              if (quiet == 0)
-                debug(2, "could not set output rate %u for device \"%s\": %s", actual_sample_rate,
-                      card, snd_strerror(ret));
+              debug(2, "could not set output rate %u for device \"%s\": %s", actual_sample_rate,
+                    card, snd_strerror(ret));
               result = -3;
             }
           } else {
-            if (quiet == 0)
-              debug(2, "could not set output format %d for device \"%s\": %s", sample_format, card,
-                    snd_strerror(ret));
+            debug(2, "could not set output format %d for device \"%s\": %s", sample_format, card,
+                  snd_strerror(ret));
             result = -2;
           }
         } else {
-          if (quiet == 0)
-            debug(1, "stereo output not available for device \"%s\": %s", card, snd_strerror(ret));
+          debug(1, "stereo output not available for device \"%s\": %s", card, snd_strerror(ret));
         }
       } else {
-        if (quiet == 0)
-          debug(1, "interleaved access not available for device \"%s\": %s", card,
-                snd_strerror(ret));
+        debug(1, "interleaved access not available for device \"%s\": %s", card, snd_strerror(ret));
       }
     } else {
-      if (quiet == 0)
-        debug(1,
-              "broken configuration for device \"%s\": no configurations "
-              "available",
-              card);
+      debug(1,
+            "broken configuration for device \"%s\": no configurations "
+            "available",
+            card);
     }
     // now close the device
     snd_pcm_close(alsa_handle);
   } else {
     if (ret == -ENODEV) {
-      if (quiet == 0)
-        debug(2, "the alsa output_device \"%s\" can not be found.", card);
-    } else if (quiet == 0) {
+      debug(2, "the alsa output_device \"%s\" can not be found.", card);
+    } else if (ret == -EBUSY) {
+      result = -4;
+      debug(1, "the alsa output_device \"%s\" is busy.", card);
+    } else {
       char errorstring[1024];
       strerror_r(-ret, (char *)errorstring, sizeof(errorstring));
       debug(1, "error %d (\"%s\") opening alsa device \"%s\".", ret, (char *)errorstring, card);
@@ -312,9 +306,9 @@ int check_alsa_device(int quiet, int stop_on_first_success) {
       snd_pcm_format_t sample_format = fr[format_check_sequence[j]].alsa_code;
       const char *desc = sps_format_description_string_array[format_check_sequence[j]];
       // debug(1, "check %d, %s", sample_rate, desc );
-      ret = check_alsa_device_with_settings(quiet, sample_format, sample_rate);
-      if (ret == -1)
-        response = -1;
+      ret = check_alsa_device_with_settings(sample_format, sample_rate);
+      if ((ret != 0) && (ret != -2) && (ret != -3))
+        response = ret;
       j++;
       if (ret == 0) {
         if (number_of_successes == 0)
@@ -325,18 +319,17 @@ int check_alsa_device(int quiet, int stop_on_first_success) {
           snprintf(information_string + strlen(information_string),
                    sizeof(information_string) - 1 - strlen(information_string), ",%s", desc);
         number_of_successes++;
-        debug(1, "    So far: \"%s\".", information_string);
-        // if (quiet == 0)
-        //  inform("%d, %s", sample_rate, desc);
         response++;
       }
-    } while ((j < number_of_formats_to_try) && (response >= 0) && (!((stop_on_first_success !=0) && (response == 1))));
+    } while ((j < number_of_formats_to_try) && (response >= 0) &&
+             (!((stop_on_first_success != 0) && (response == 1))));
     if ((number_of_successes > 0) && (quiet == 0))
       inform(information_string);
-    if (ret == -1)
-      response = -1;
+    if ((ret != 0) && (ret != -2) && (ret != -3))
+      response = ret;
     i++;
-  } while ((i < number_of_speeds_to_try) && (response >= 0) && (!((stop_on_first_success !=0) && (response == 1))));
+  } while ((i < number_of_speeds_to_try) && (response >= 0) &&
+           (!((stop_on_first_success != 0) && (response == 1))));
 
   return response; // -1 if a problem arose, number of successes otherwise
 }
@@ -380,7 +373,7 @@ static int cards(void) {
         continue;
       }
 
-      if ((check_alsa_device(1, 0) > 0) || (extended_output != 0)) {
+      if ((check_alsa_device(1, 0) > 0) || (extended_output != 0) || (check_alsa_device(1, 0) == -4)) {
         inform("> Device:              \"hw:CARD=%s,DEV=%i\"", snd_ctl_card_info_get_id(info), dev);
         if (dev > 0)
           inform("  Short Name:          \"hw:%i,%i\"", card_number, dev);
@@ -393,6 +386,7 @@ static int cards(void) {
         }
 
         if (check_alsa_device(1, 0) > 0) {
+          inform("  This device seems suitable for use with Shairport Sync.");
           if ((selems_if_has_db_playback(0, NULL, NULL)) ||
               (selems_if_has_db_playback(1, NULL, NULL))) {
 
@@ -411,14 +405,17 @@ static int cards(void) {
               inform("    No mixers usable by Shairport Sync.");
           }
           if (extended_output == 0) {
-            inform("  Automatic Rate and Format choice:");
-            inform("     FPS               Format");
+            inform("  Shairport Sync \"auto\" rate and format:");
+            inform("     Rate              Format");
             check_alsa_device(0, 1);
-         } else {
+          } else {
             inform("    Rates and Formats for Shairport Sync (best first):");
-            inform("     FPS               Formats");
+            inform("     Rate              Formats");
             check_alsa_device(0, 0);
           }
+        } else if (check_alsa_device(1, 0) == -4) {
+          inform("  This device is in use and therefore can not be checked for use with Shairport Sync.");
+          inform("  To check it, please take it out of use and try again.");
         } else {
           inform("  Shairport Sync can not use this device.");
         }
@@ -470,19 +467,24 @@ int main(int argc, char *argv[]) {
       } else if (strcmp(argv[i] + 1, "v") == 0) {
         debug_level = 1;
       } else if (strcmp(argv[i] + 1, "h") == 0) {
-        fprintf(stdout, "This tool scans for ALSA devices that can be used by Shairport Sync.\n"
-                        "It does this by attempting to open each ALSA device for two-channel interleaved operation at\n"
-                        "frame rates that are multiples of 44100, and with signed linear integer formats of 32, 24 and 16 bits,\n"
-                        "ending with 8-bit signed and unsigned linear integer formats.\n"
-                        "If successful, it lists any decibel-mapped mixers found on the device for possible use by Shairport Sync.\n"
-                        "It also lists the frame rate and format that would be chosen by Shairport Sync in automatic mode.\n"
-                        "Command line arguments:\n"
-                        "    -e     extended information -- a little more information about each device,\n"
-                        "    -V     print version,\n"
-                        "    -v     verbose log,\n"
-                        "    -vv    more verbose log,\n"
-                        "    -vvv   very verbose log,\n"
-                        "    -h     this help text.\n");
+        fprintf(stdout,
+                "This tool scans for ALSA devices that can be used by Shairport Sync.\n"
+                "It does this by attempting to open each ALSA device for two-channel interleaved "
+                "operation at\n"
+                "frame rates that are multiples of 44100, and with signed linear integer formats "
+                "of 32, 24 and 16 bits,\n"
+                "ending with 8-bit signed and unsigned linear integer formats.\n"
+                "If successful, it lists any decibel-mapped mixers found on the device for "
+                "possible use by Shairport Sync.\n"
+                "It also lists the frame rate and format that would be chosen by Shairport Sync in "
+                "automatic mode.\n"
+                "Command line arguments:\n"
+                "    -e     extended information -- a little more information about each device,\n"
+                "    -V     print version,\n"
+                "    -v     verbose log,\n"
+                "    -vv    more verbose log,\n"
+                "    -vvv   very verbose log,\n"
+                "    -h     this help text.\n");
         exit(EXIT_SUCCESS);
       } else if (strcmp(argv[i] + 1, "e") == 0) {
         extended_output = 1;
