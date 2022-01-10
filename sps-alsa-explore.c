@@ -1,4 +1,4 @@
-// ALSAExplore is based on amixer v1.0.3, license below.
+// SPS-ALSA-Explore is based, with thanks, on amixer v1.0.3, license below.
 
 /*
  *   ALSA command line mixer utility
@@ -20,7 +20,9 @@
  *
  */
 
-#include "alsaexplore.h"
+// extended and modified (C) 2021-2022 by Mike Brady <4265913+mikebrady@users.noreply.github.com>
+ 
+#include "sps-alsa-explore.h"
 #include "gitversion.h"
 #include <alsa/asoundlib.h>
 #include <assert.h>
@@ -34,8 +36,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-// #include "../alsamixer/volume_mapping.h"
 
 #define LEVEL_BASIC (1 << 0)
 #define LEVEL_INACTIVE (1 << 1)

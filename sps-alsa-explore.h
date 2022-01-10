@@ -1,3 +1,5 @@
+// SPS-ALSA-Explore is based, with thanks, on amixer v1.0.3, license below.
+
 /*
  *   ALSA command line mixer utility
  *   Copyright (c) 1999 by Jaroslav Kysela <perex@perex.cz>
@@ -18,4 +20,4 @@
  *
  */
 
-// #include "../include/version.h"
+// extended and modified (C) 2021-2022 by Mike Brady <4265913+mikebrady@users.noreply.github.com>
