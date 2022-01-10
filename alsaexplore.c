@@ -296,15 +296,16 @@ int check_alsa_device(int quiet) {
 
   int ret;
   int i = 0;
+  // pick speeds
   do {
-    // pick a format
-    snd_pcm_format_t sample_format = fr[format_check_sequence[i]].alsa_code;
-    const char *desc = sps_format_description_string_array[format_check_sequence[i]];
-    // pick speeds
+    // pick a speed
+      unsigned int sample_rate = auto_speed_output_rates[i];
+    // pick formats
     int j = 0;
     do {
-      // pick a speed
-      unsigned int sample_rate = auto_speed_output_rates[j];
+      // pick a format
+      snd_pcm_format_t sample_format = fr[format_check_sequence[j]].alsa_code;
+      const char *desc = sps_format_description_string_array[format_check_sequence[j]];
       // debug(1, "check %d, %s", sample_rate, desc );
       ret = check_alsa_device_with_settings(0, sample_format, sample_rate);
       if (ret == -1)
@@ -316,11 +317,11 @@ int check_alsa_device(int quiet) {
           inform("%d, %s", sample_rate, desc);
         response++;
       }
-    } while ((j < number_of_speeds_to_try) && (response >= 0));
+    } while ((j < number_of_formats_to_try) && (response >= 0));
     if (ret == -1)
       response = -1;
     i++;
-  } while ((i < number_of_formats_to_try) && (response >= 0));
+  } while ((i < number_of_speeds_to_try) && (response >= 0));
 
   return response; // -1 if a problem arose, number of successes otherwise
 }
