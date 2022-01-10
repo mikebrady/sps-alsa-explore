@@ -137,6 +137,13 @@ unsigned int auto_speed_output_rates[] = {
     352800,
 };
 
+unsigned int alternate_speed_output_rates[] = {
+    48000,
+    96000,
+    192000,
+    384000,
+};
+
 // This array is of all the formats known to Shairport Sync, in order of the SPS_FORMAT definitions,
 // with their equivalent alsa codes and their frame sizes.
 // If just one format is requested, then its entry is searched for in the array and checked on the
@@ -286,16 +293,22 @@ int check_alsa_device_with_settings(snd_pcm_format_t sample_format,
   return result;
 }
 
-int check_alsa_device(int quiet, int stop_on_first_success) {
+int check_alsa_device(int quiet, int stop_on_first_success, int check_alternate_speeds) {
   int response = 0;
   int number_of_formats_to_try = sizeof(format_check_sequence) / sizeof(sps_format_t);
   int number_of_speeds_to_try = sizeof(auto_speed_output_rates) / sizeof(int);
+  unsigned int *speeds = auto_speed_output_rates;
+  if (check_alternate_speeds != 0) {
+    number_of_speeds_to_try = sizeof(alternate_speed_output_rates) / sizeof(int);
+    speeds = alternate_speed_output_rates;
+  }
+    
   int ret;
   int i = 0;
   // pick speeds
   do {
     // pick next speed to check
-    unsigned int sample_rate = auto_speed_output_rates[i];
+    unsigned int sample_rate = speeds[i];
     int number_of_successes = 0;
     char information_string[1024];
     information_string[0] = '\0';
@@ -375,7 +388,7 @@ static int cards(void) {
         continue;
       }
 
-      if ((check_alsa_device(1, 0) > 0) || (extended_output != 0) || (check_alsa_device(1, 0) == -4)) {
+      if ((check_alsa_device(1, 0, 0) > 0) || (extended_output != 0) || (check_alsa_device(1, 0, 0) == -4)) {
         inform("> Device:              \"hw:CARD=%s,DEV=%i\"", snd_ctl_card_info_get_id(info), dev);
         if (dev > 0)
           inform("  Short Name:          \"hw:%i,%i\"", card_number, dev);
@@ -387,7 +400,7 @@ static int cards(void) {
           inform("    Device %i PCM Name: \"%s\"", dev, snd_pcm_info_get_name(pcminfo));
         }
 
-        if (check_alsa_device(1, 0) > 0) {
+        if (check_alsa_device(1, 0, 0) > 0) {
           inform("  This device seems suitable for use with Shairport Sync.");
           if ((selems_if_has_db_playback(0, NULL, NULL)) ||
               (selems_if_has_db_playback(1, NULL, NULL))) {
@@ -409,13 +422,13 @@ static int cards(void) {
           if (extended_output == 0) {
             inform("  Shairport Sync \"auto\" rate and format:");
             inform("     Rate              Format");
-            check_alsa_device(0, 1);
+            check_alsa_device(0, 1, 0);
           } else {
-            inform("    Rates and Formats for Shairport Sync (\"auto\" selection first):");
+            inform("    Rates and formats suitable for Shairport Sync (\"auto\" selection first):");
             inform("     Rate              Formats");
-            check_alsa_device(0, 0);
+            check_alsa_device(0, 0, 0);            
           }
-        } else if (check_alsa_device(1, 0) == -4) {
+        } else if (check_alsa_device(1, 0, 0) == -4) {
           inform("  This device is in use and therefore can not be checked for use with Shairport Sync.");
           inform("  To check it, please take it out of use and try again.");
         } else {
