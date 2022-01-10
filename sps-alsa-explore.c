@@ -457,7 +457,7 @@ int main(int argc, char *argv[]) {
       if (strcmp(argv[i] + 1, "V") == 0) {
 #ifdef CONFIG_USE_GIT_VERSION_STRING
         if (git_version_string[0] != '\0')
-          fprintf(stdout, "Version: %s.\n", git_version_string);
+          fprintf(stdout, "Version: %s\n", git_version_string);
         else
 #endif
           fprintf(stdout, "Version: %s.\n", VERSION);
