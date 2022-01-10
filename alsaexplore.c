@@ -298,11 +298,12 @@ int check_alsa_device(int quiet) {
   // pick speeds
   do {
     // pick next speed to check
-      unsigned int sample_rate = auto_speed_output_rates[i];
-      int number_of_successes = 0;
-      char information_string[1024];
-      information_string[0] = '\0';
-      snprintf(information_string, sizeof(information_string) -1 - strlen(information_string), "    %-6u", sample_rate);
+    unsigned int sample_rate = auto_speed_output_rates[i];
+    int number_of_successes = 0;
+    char information_string[1024];
+    information_string[0] = '\0';
+    snprintf(information_string, sizeof(information_string) - 1 - strlen(information_string),
+             "    %-6u", sample_rate);
     // pick formats
     int j = 0;
     do {
@@ -316,9 +317,12 @@ int check_alsa_device(int quiet) {
       j++;
       if (ret == 0) {
         if (number_of_successes == 0)
-          snprintf(information_string+strlen(information_string), sizeof(information_string) - 1 - strlen(information_string), "             %s", desc);
+          snprintf(information_string + strlen(information_string),
+                   sizeof(information_string) - 1 - strlen(information_string), "             %s",
+                   desc);
         else
-          snprintf(information_string+strlen(information_string), sizeof(information_string) - 1 - strlen(information_string), ",%s", desc);
+          snprintf(information_string + strlen(information_string),
+                   sizeof(information_string) - 1 - strlen(information_string), ",%s", desc);
         number_of_successes++;
         debug(1, "    So far: \"%s\".", information_string);
         // if (quiet == 0)
@@ -326,8 +330,8 @@ int check_alsa_device(int quiet) {
         response++;
       }
     } while ((j < number_of_formats_to_try) && (response >= 0));
-      if ((number_of_successes > 0) && (quiet == 0))
-        inform(information_string);
+    if ((number_of_successes > 0) && (quiet == 0))
+      inform(information_string);
     if (ret == -1)
       response = -1;
     i++;
@@ -387,7 +391,7 @@ static int cards(void) {
         if ((selems_if_has_db_playback(0, NULL, NULL)) ||
             (selems_if_has_db_playback(1, NULL, NULL))) {
 
-          char fp[] = "  dB Mixers:           ";
+          char fp[] = "  Mixers:              ";
           char sp[] = "                       ";
           int found = selems_if_has_db_playback(0, fp,
                                                 sp); // omit mixers that also have a capture part
@@ -398,9 +402,9 @@ static int cards(void) {
             selems_if_has_db_playback(1, fp,
                                       sp); // include mixers that also have a capture part
         } else {
-          inform("  No Mixers.");
+          inform("  No mixers usable by Shairport Sync.");
         }
-        inform("    Rates and Formats:");
+        inform("    Rates and Formats for Shairport Sync:");
         inform("    FPS                Formats");
         check_alsa_device(0);
       } else {
