@@ -81,7 +81,7 @@ static int selems_if_has_db_playback(int include_mixers_with_capture, char *firs
                 if (snd_mixer_selem_get_playback_dB_range(elem, &min_db, &max_db) == 0) {
                   snd_mixer_selem_get_id(elem, sid);
                   if (firstPrompt != NULL) {
-                    printf("%s\"%s\"\n",
+                    inform("%s\"%s\"",
                            (firstPromptUsed != 0) && (subsequentPrompt != NULL) ? subsequentPrompt
                                                                                 : firstPrompt,
                            snd_mixer_selem_id_get_name(sid));
@@ -172,9 +172,9 @@ format_record fr[] = {
 // be added at the lowest possible level.
 // Hence, selecting the greatest bit depth is always either beneficial or neutral.
 
-sps_format_t auto_format_check_sequence[] = {
-    SPS_FORMAT_S32,    SPS_FORMAT_S32_LE,  SPS_FORMAT_S32_BE,  SPS_FORMAT_S24, SPS_FORMAT_S24_LE,
-    SPS_FORMAT_S24_BE, SPS_FORMAT_S24_3LE, SPS_FORMAT_S24_3BE, SPS_FORMAT_S16, SPS_FORMAT_S16_LE,
+sps_format_t format_check_sequence[] = {
+    SPS_FORMAT_S32_LE,  SPS_FORMAT_S32_BE,  SPS_FORMAT_S24_LE,
+    SPS_FORMAT_S24_BE, SPS_FORMAT_S24_3LE, SPS_FORMAT_S24_3BE, SPS_FORMAT_S16_LE,
     SPS_FORMAT_S16_BE, SPS_FORMAT_S8,      SPS_FORMAT_U8,
 };
 
@@ -191,6 +191,8 @@ const char *sps_format_description_string(sps_format_t format) {
 
 int check_alsa_device_with_settings(int quiet, snd_pcm_format_t sample_format,
                                     unsigned int sample_rate) {
+                                    
+  // returns 0 if successful, -2 if can't set format, -3 if can't set speed, -1 otherwise
   int result = -1;
   int ret, dir = 0;
   ret = snd_pcm_open(&alsa_handle, card, SND_PCM_STREAM_PLAYBACK, 0);
@@ -246,13 +248,15 @@ int check_alsa_device_with_settings(int quiet, snd_pcm_format_t sample_format,
               }
             } else {
               if (quiet == 0)
-                debug(1,"could not set output rate %u for device \"%s\": %s", actual_sample_rate, card,
+                debug(2,"could not set output rate %u for device \"%s\": %s", actual_sample_rate, card,
                       snd_strerror(ret));
+                result = -3;
             }
           } else {
             if (quiet == 0)
-              debug(1,"could not set output format %d for device \"%s\": %s", sample_format, card,
+              debug(2,"could not set output format %d for device \"%s\": %s", sample_format, card,
                     snd_strerror(ret));
+            result = -2;
           }
         } else {
           if (quiet == 0)
@@ -271,9 +275,9 @@ int check_alsa_device_with_settings(int quiet, snd_pcm_format_t sample_format,
     // now close the device
     snd_pcm_close(alsa_handle);
   } else {
-    if (ret == -ENOENT) {
+    if (ret == -ENODEV) {
       if (quiet == 0)
-        debug(1,"the alsa output_device \"%s\" can not be found.", card);
+        debug(2,"the alsa output_device \"%s\" can not be found.", card);
     } else if (quiet == 0) {
       char errorstring[1024];
       strerror_r(-ret, (char *)errorstring, sizeof(errorstring));
@@ -284,11 +288,12 @@ int check_alsa_device_with_settings(int quiet, snd_pcm_format_t sample_format,
 }
 
 int check_alsa_device(int quiet) {
+  int response = 0;
   // pick formats
   int number_of_formats_to_try;
   sps_format_t *formats;
-  formats = auto_format_check_sequence;
-  number_of_formats_to_try = sizeof(auto_format_check_sequence) / sizeof(sps_format_t);
+  formats = format_check_sequence;
+  number_of_formats_to_try = sizeof(format_check_sequence) / sizeof(sps_format_t);
   int ret;
   int i = 0;
   do {
@@ -301,17 +306,22 @@ int check_alsa_device(int quiet) {
     do {
       // pick a speed
       unsigned int sample_rate = auto_speed_output_rates[j];
+      // debug(1, "check %d, %s", sample_rate, desc );
       ret = check_alsa_device_with_settings(0, sample_format, sample_rate);
-      if (ret != 0)
-        j++;
-      if (ret == 0)
-        debug(1,"Success with format %s, speed %d.", desc, sample_rate);
-    } while ((ret != 0) && (j < number_of_speeds_to_try));
-    if (ret != 0)
-      i++;
-  } while ((ret != 0) && (i < number_of_formats_to_try));
-  
-  return 0;
+      if (ret == -1)
+        response = -1;
+      j++;
+      if (ret == 0) {
+        // if (quiet == 0)
+          inform("%d, %s", sample_rate, desc );
+        response++;
+      }
+    } while ((j < number_of_speeds_to_try) && (response >= 0));
+    if (ret == -1)
+      response = -1;
+    i++;
+  } while ((i < number_of_formats_to_try) && (response >= 0));
+  return response; // -1 if a problem arose, number of successes otherwise
 }
 
 static int cards(void) {
@@ -357,7 +367,11 @@ static int cards(void) {
         inform("  Short Name:          \"hw:%i,%i\"", card_number, dev);
       else
         inform("  Short Name:          \"hw:%i\"", card_number);
-      if (check_alsa_device(1) == 0) {
+      debug(1,"    Card Name: \"%s\"", snd_ctl_card_info_get_name(info));
+      debug(1,"    Device %i PCM ID: \"%s\"", dev, snd_pcm_info_get_id(pcminfo));
+      debug(1,"    Device %i PCM Name: \"%s\"", dev, snd_pcm_info_get_name(pcminfo));
+
+      if (check_alsa_device(1) > 0) {
         if ((selems_if_has_db_playback(0, NULL, NULL)) ||
             (selems_if_has_db_playback(1, NULL, NULL))) {
 
@@ -378,13 +392,12 @@ static int cards(void) {
         inform("  Shairport Sync can not use this device.");
       }
 
-      // inform("Output Device hw:%i: %s [%s], device %i: %s [%s]", card_number,
-      // snd_ctl_card_info_get_id(info),
-      //       snd_ctl_card_info_get_name(info), dev, snd_pcm_info_get_id(pcminfo),
-      //       snd_pcm_info_get_name(pcminfo));
+      
       /*
-      count = snd_pcm_info_get_subdevices_count(pcminfo);
+      // subdevices
+      int count = snd_pcm_info_get_subdevices_count(pcminfo);
       inform("  Subdevices: %i/%i", snd_pcm_info_get_subdevices_avail(pcminfo), count);
+      int idx;
       for (idx = 0; idx < (int)count; idx++) {
               snd_pcm_info_set_subdevice(pcminfo, idx);
               if ((err = snd_ctl_pcm_info(handle, pcminfo)) < 0) {
