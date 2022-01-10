@@ -59,15 +59,15 @@ static int selems_if_has_db_playback(int include_mixers_with_capture, char *firs
   } else {
     if ((result = snd_mixer_attach(handle, card)) < 0) {
       if (firstPrompt != NULL)
-        debug(1,"Mixer attach %s error: %s", card, snd_strerror(result));
+        debug(1, "Mixer attach %s error: %s", card, snd_strerror(result));
     } else {
       if ((result = snd_mixer_selem_register(handle, NULL, NULL)) < 0) {
         if (firstPrompt != NULL)
-          debug(1,"Mixer register error: %s", snd_strerror(result));
+          debug(1, "Mixer register error: %s", snd_strerror(result));
       } else {
         if ((result = snd_mixer_load(handle)) < 0) {
           if (firstPrompt != NULL)
-            debug(1,"Mixer %s load error: %s", card, snd_strerror(result));
+            debug(1, "Mixer %s load error: %s", card, snd_strerror(result));
         } else {
           for (elem = snd_mixer_first_elem(handle); elem; elem = snd_mixer_elem_next(elem)) {
             if (snd_mixer_selem_is_active(elem)) {
@@ -173,9 +173,8 @@ format_record fr[] = {
 // Hence, selecting the greatest bit depth is always either beneficial or neutral.
 
 sps_format_t format_check_sequence[] = {
-    SPS_FORMAT_S32_LE,  SPS_FORMAT_S32_BE,  SPS_FORMAT_S24_LE,
-    SPS_FORMAT_S24_BE, SPS_FORMAT_S24_3LE, SPS_FORMAT_S24_3BE, SPS_FORMAT_S16_LE,
-    SPS_FORMAT_S16_BE, SPS_FORMAT_S8,      SPS_FORMAT_U8,
+    SPS_FORMAT_S32_LE,  SPS_FORMAT_S32_BE, SPS_FORMAT_S24_LE, SPS_FORMAT_S24_BE, SPS_FORMAT_S24_3LE,
+    SPS_FORMAT_S24_3BE, SPS_FORMAT_S16_LE, SPS_FORMAT_S16_BE, SPS_FORMAT_S8,     SPS_FORMAT_U8,
 };
 
 const char *sps_format_description_string_array[] = {
@@ -191,7 +190,7 @@ const char *sps_format_description_string(sps_format_t format) {
 
 int check_alsa_device_with_settings(int quiet, snd_pcm_format_t sample_format,
                                     unsigned int sample_rate) {
-                                    
+
   // returns 0 if successful, -2 if can't set format, -3 if can't set speed, -1 otherwise
   int result = -1;
   int ret, dir = 0;
@@ -227,48 +226,51 @@ int check_alsa_device_with_settings(int quiet, snd_pcm_format_t sample_format,
                       result = 0; // success
                     } else {
                       if (quiet == 0)
-                        debug(1,"unable to set software parameters of device: \"%s\": %s.", card,
+                        debug(1, "unable to set software parameters of device: \"%s\": %s.", card,
                               snd_strerror(ret));
                     }
                   } else {
                     if (quiet == 0)
-                      debug(1,"can not enable timestamp mode of device: \"%s\": %s.", card,
+                      debug(1, "can not enable timestamp mode of device: \"%s\": %s.", card,
                             snd_strerror(ret));
                   }
                 } else {
                   if (quiet == 0)
-                    debug(1,"unable to get software parameters for device \"%s\": "
+                    debug(1,
+                          "unable to get software parameters for device \"%s\": "
                           "%s.",
                           card, snd_strerror(ret));
                 }
               } else {
                 if (quiet == 0)
-                  debug(1,"unable to set hardware parameters for device \"%s\": %s.", card,
+                  debug(1, "unable to set hardware parameters for device \"%s\": %s.", card,
                         snd_strerror(ret));
               }
             } else {
               if (quiet == 0)
-                debug(2,"could not set output rate %u for device \"%s\": %s", actual_sample_rate, card,
-                      snd_strerror(ret));
-                result = -3;
+                debug(2, "could not set output rate %u for device \"%s\": %s", actual_sample_rate,
+                      card, snd_strerror(ret));
+              result = -3;
             }
           } else {
             if (quiet == 0)
-              debug(2,"could not set output format %d for device \"%s\": %s", sample_format, card,
+              debug(2, "could not set output format %d for device \"%s\": %s", sample_format, card,
                     snd_strerror(ret));
             result = -2;
           }
         } else {
           if (quiet == 0)
-            debug(1,"stereo output not available for device \"%s\": %s", card, snd_strerror(ret));
+            debug(1, "stereo output not available for device \"%s\": %s", card, snd_strerror(ret));
         }
       } else {
         if (quiet == 0)
-          debug(1,"interleaved access not available for device \"%s\": %s", card, snd_strerror(ret));
+          debug(1, "interleaved access not available for device \"%s\": %s", card,
+                snd_strerror(ret));
       }
     } else {
       if (quiet == 0)
-        debug(1,"broken configuration for device \"%s\": no configurations "
+        debug(1,
+              "broken configuration for device \"%s\": no configurations "
               "available",
               card);
     }
@@ -277,11 +279,11 @@ int check_alsa_device_with_settings(int quiet, snd_pcm_format_t sample_format,
   } else {
     if (ret == -ENODEV) {
       if (quiet == 0)
-        debug(2,"the alsa output_device \"%s\" can not be found.", card);
+        debug(2, "the alsa output_device \"%s\" can not be found.", card);
     } else if (quiet == 0) {
       char errorstring[1024];
       strerror_r(-ret, (char *)errorstring, sizeof(errorstring));
-      debug(1,"error %d (\"%s\") opening alsa device \"%s\".", ret, (char *)errorstring, card);
+      debug(1, "error %d (\"%s\") opening alsa device \"%s\".", ret, (char *)errorstring, card);
     }
   }
   return result;
@@ -312,8 +314,9 @@ int check_alsa_device(int quiet) {
         response = -1;
       j++;
       if (ret == 0) {
-        // if (quiet == 0)
-          inform("%d, %s", sample_rate, desc );
+        debug(1, "    Setting %d, %s succeeded.", sample_rate, desc);
+        if (quiet == 0)
+          inform("%d, %s", sample_rate, desc);
         response++;
       }
     } while ((j < number_of_speeds_to_try) && (response >= 0));
@@ -334,24 +337,24 @@ static int cards(void) {
 
   card_number = -1;
   if (snd_card_next(&card_number) < 0 || card_number < 0) {
-    debug(1,"no soundcards found...");
+    debug(1, "no soundcards found...");
     return -1;
   }
   while (card_number >= 0) {
     sprintf(card, "hw:%d", card_number);
     if ((err = snd_ctl_open(&handle, card, 0)) < 0) {
-      debug(1,"control open (%i): %s", card_number, snd_strerror(err));
+      debug(1, "control open (%i): %s", card_number, snd_strerror(err));
       goto next_card;
     }
     if ((err = snd_ctl_card_info(handle, info)) < 0) {
-      debug(1,"control hardware info (%i): %s", card_number, snd_strerror(err));
+      debug(1, "control hardware info (%i): %s", card_number, snd_strerror(err));
       snd_ctl_close(handle);
       goto next_card;
     }
     dev = -1;
     while (1) {
       if (snd_ctl_pcm_next_device(handle, &dev) < 0)
-        debug(1,"snd_ctl_pcm_next_device");
+        debug(1, "snd_ctl_pcm_next_device");
       if (dev < 0)
         break;
       snd_pcm_info_set_device(pcminfo, dev);
@@ -359,7 +362,7 @@ static int cards(void) {
       snd_pcm_info_set_stream(pcminfo, SND_PCM_STREAM_PLAYBACK);
       if ((err = snd_ctl_pcm_info(handle, pcminfo)) < 0) {
         if (err != -ENOENT)
-          debug(1,"control digital audio info (%i): %s", card, snd_strerror(err));
+          debug(1, "control digital audio info (%i): %s", card, snd_strerror(err));
         continue;
       }
       inform("ALSA Hardware Device:  \"hw:CARD=%s,DEV=%i\"", snd_ctl_card_info_get_id(info), dev);
@@ -367,9 +370,9 @@ static int cards(void) {
         inform("  Short Name:          \"hw:%i,%i\"", card_number, dev);
       else
         inform("  Short Name:          \"hw:%i\"", card_number);
-      debug(1,"    Card Name: \"%s\"", snd_ctl_card_info_get_name(info));
-      debug(1,"    Device %i PCM ID: \"%s\"", dev, snd_pcm_info_get_id(pcminfo));
-      debug(1,"    Device %i PCM Name: \"%s\"", dev, snd_pcm_info_get_name(pcminfo));
+      debug(1, "    Card Name: \"%s\"", snd_ctl_card_info_get_name(info));
+      debug(1, "    Device %i PCM ID: \"%s\"", dev, snd_pcm_info_get_id(pcminfo));
+      debug(1, "    Device %i PCM Name: \"%s\"", dev, snd_pcm_info_get_name(pcminfo));
 
       if (check_alsa_device(1) > 0) {
         if ((selems_if_has_db_playback(0, NULL, NULL)) ||
@@ -392,7 +395,6 @@ static int cards(void) {
         inform("  Shairport Sync can not use this device.");
       }
 
-      
       /*
       // subdevices
       int count = snd_pcm_info_get_subdevices_count(pcminfo);
@@ -412,7 +414,7 @@ static int cards(void) {
     snd_ctl_close(handle);
   next_card:
     if (snd_card_next(&card_number) < 0) {
-      debug(1,"snd_card_next");
+      debug(1, "snd_card_next");
       break;
     }
   }
