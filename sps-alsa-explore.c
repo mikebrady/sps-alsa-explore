@@ -478,6 +478,8 @@ int main(int argc, char *argv[]) {
                 "possible use by Shairport Sync.\n"
                 "It also lists the frame rate and format that would be chosen by Shairport Sync in "
                 "automatic mode.\n"
+                "If a device is in use, it can't be checked by this tool. In that case, you would need to\n"
+                "take the device out of use and run this tool again.\n"
                 "Command line arguments:\n"
                 "    -e     extended information -- a little more information about each device,\n"
                 "    -V     print version,\n"
