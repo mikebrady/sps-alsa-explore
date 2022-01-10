@@ -429,7 +429,7 @@ static int cards(void) {
             check_alsa_device(0, 0, 0);            
           }
         } else if (check_alsa_device(1, 0, 0) == -4) {
-          inform("  This device is in use and therefore can not be checked for use with Shairport Sync.");
+          inform("  This device is already in use and therefore can not be checked at this time.");
           inform("  To check it, please take it out of use and try again.");
         } else {
           inform("  Shairport Sync can not use this device.");
