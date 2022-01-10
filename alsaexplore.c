@@ -381,7 +381,7 @@ static int cards(void) {
       }
 
       if ((check_alsa_device(1, 0) > 0) || (extended_output != 0)) {
-        inform("> Device:  \"hw:CARD=%s,DEV=%i\"", snd_ctl_card_info_get_id(info), dev);
+        inform("> Device:              \"hw:CARD=%s,DEV=%i\"", snd_ctl_card_info_get_id(info), dev);
         if (dev > 0)
           inform("  Short Name:          \"hw:%i,%i\"", card_number, dev);
         else
