@@ -43,16 +43,6 @@
 
 char card[64];
 
-void error(const char *fmt, ...) {
-  va_list va;
-
-  va_start(va, fmt);
-  fprintf(stderr, "%s: ", PACKAGE_NAME);
-  vfprintf(stderr, fmt, va);
-  fprintf(stderr, "\n");
-  va_end(va);
-}
-
 static int selems_if_has_db_playback(int include_mixers_with_capture, char *firstPrompt,
                                      char *subsequentPrompt) {
   int result = 0;
@@ -69,15 +59,15 @@ static int selems_if_has_db_playback(int include_mixers_with_capture, char *firs
   } else {
     if ((result = snd_mixer_attach(handle, card)) < 0) {
       if (firstPrompt != NULL)
-        error("Mixer attach %s error: %s", card, snd_strerror(result));
+        debug(1,"Mixer attach %s error: %s", card, snd_strerror(result));
     } else {
       if ((result = snd_mixer_selem_register(handle, NULL, NULL)) < 0) {
         if (firstPrompt != NULL)
-          error("Mixer register error: %s", snd_strerror(result));
+          debug(1,"Mixer register error: %s", snd_strerror(result));
       } else {
         if ((result = snd_mixer_load(handle)) < 0) {
           if (firstPrompt != NULL)
-            error("Mixer %s load error: %s", card, snd_strerror(result));
+            debug(1,"Mixer %s load error: %s", card, snd_strerror(result));
         } else {
           for (elem = snd_mixer_first_elem(handle); elem; elem = snd_mixer_elem_next(elem)) {
             if (snd_mixer_selem_is_active(elem)) {
@@ -235,46 +225,46 @@ int check_alsa_device_with_settings(int quiet, snd_pcm_format_t sample_format,
                       result = 0; // success
                     } else {
                       if (quiet == 0)
-                        error("unable to set software parameters of device: \"%s\": %s.", card,
+                        debug(1,"unable to set software parameters of device: \"%s\": %s.", card,
                               snd_strerror(ret));
                     }
                   } else {
                     if (quiet == 0)
-                      error("can not enable timestamp mode of device: \"%s\": %s.", card,
+                      debug(1,"can not enable timestamp mode of device: \"%s\": %s.", card,
                             snd_strerror(ret));
                   }
                 } else {
                   if (quiet == 0)
-                    error("unable to get software parameters for device \"%s\": "
+                    debug(1,"unable to get software parameters for device \"%s\": "
                           "%s.",
                           card, snd_strerror(ret));
                 }
               } else {
                 if (quiet == 0)
-                  error("unable to set hardware parameters for device \"%s\": %s.", card,
+                  debug(1,"unable to set hardware parameters for device \"%s\": %s.", card,
                         snd_strerror(ret));
               }
             } else {
               if (quiet == 0)
-                error("could not set output rate %u for device \"%s\": %s", actual_sample_rate, card,
+                debug(1,"could not set output rate %u for device \"%s\": %s", actual_sample_rate, card,
                       snd_strerror(ret));
             }
           } else {
             if (quiet == 0)
-              error("could not set output format %d for device \"%s\": %s", sample_format, card,
+              debug(1,"could not set output format %d for device \"%s\": %s", sample_format, card,
                     snd_strerror(ret));
           }
         } else {
           if (quiet == 0)
-            error("stereo output not available for device \"%s\": %s", card, snd_strerror(ret));
+            debug(1,"stereo output not available for device \"%s\": %s", card, snd_strerror(ret));
         }
       } else {
         if (quiet == 0)
-          error("interleaved access not available for device \"%s\": %s", card, snd_strerror(ret));
+          debug(1,"interleaved access not available for device \"%s\": %s", card, snd_strerror(ret));
       }
     } else {
       if (quiet == 0)
-        error("broken configuration for device \"%s\": no configurations "
+        debug(1,"broken configuration for device \"%s\": no configurations "
               "available",
               card);
     }
@@ -283,11 +273,11 @@ int check_alsa_device_with_settings(int quiet, snd_pcm_format_t sample_format,
   } else {
     if (ret == -ENOENT) {
       if (quiet == 0)
-        error("the alsa output_device \"%s\" can not be found.", card);
+        debug(1,"the alsa output_device \"%s\" can not be found.", card);
     } else if (quiet == 0) {
       char errorstring[1024];
       strerror_r(-ret, (char *)errorstring, sizeof(errorstring));
-      error("error %d (\"%s\") opening alsa device \"%s\".", ret, (char *)errorstring, card);
+      debug(1,"error %d (\"%s\") opening alsa device \"%s\".", ret, (char *)errorstring, card);
     }
   }
   return result;
@@ -315,7 +305,7 @@ int check_alsa_device(int quiet) {
       if (ret != 0)
         j++;
       if (ret == 0)
-        error("Success with format %s, speed %d.", desc, sample_rate);
+        debug(1,"Success with format %s, speed %d.", desc, sample_rate);
     } while ((ret != 0) && (j < number_of_speeds_to_try));
     if (ret != 0)
       i++;
@@ -334,24 +324,24 @@ static int cards(void) {
 
   card_number = -1;
   if (snd_card_next(&card_number) < 0 || card_number < 0) {
-    error("no soundcards found...");
+    debug(1,"no soundcards found...");
     return -1;
   }
   while (card_number >= 0) {
     sprintf(card, "hw:%d", card_number);
     if ((err = snd_ctl_open(&handle, card, 0)) < 0) {
-      error("control open (%i): %s", card_number, snd_strerror(err));
+      debug(1,"control open (%i): %s", card_number, snd_strerror(err));
       goto next_card;
     }
     if ((err = snd_ctl_card_info(handle, info)) < 0) {
-      error("control hardware info (%i): %s", card_number, snd_strerror(err));
+      debug(1,"control hardware info (%i): %s", card_number, snd_strerror(err));
       snd_ctl_close(handle);
       goto next_card;
     }
     dev = -1;
     while (1) {
       if (snd_ctl_pcm_next_device(handle, &dev) < 0)
-        error("snd_ctl_pcm_next_device");
+        debug(1,"snd_ctl_pcm_next_device");
       if (dev < 0)
         break;
       snd_pcm_info_set_device(pcminfo, dev);
@@ -359,15 +349,14 @@ static int cards(void) {
       snd_pcm_info_set_stream(pcminfo, SND_PCM_STREAM_PLAYBACK);
       if ((err = snd_ctl_pcm_info(handle, pcminfo)) < 0) {
         if (err != -ENOENT)
-          error("control digital audio info (%i): %s", card, snd_strerror(err));
+          debug(1,"control digital audio info (%i): %s", card, snd_strerror(err));
         continue;
       }
-      printf("ALSA Hardware Device:  \"hw:CARD=%s,DEV=%i\"\n", snd_ctl_card_info_get_id(info), dev);
-      printf("  Short Name:          ");
+      inform("ALSA Hardware Device:  \"hw:CARD=%s,DEV=%i\"", snd_ctl_card_info_get_id(info), dev);
       if (dev > 0)
-        printf("\"hw:%i,%i\"\n", card_number, dev);
+        inform("  Short Name:          \"hw:%i,%i\"", card_number, dev);
       else
-        printf("\"hw:%i\"\n", card_number);
+        inform("  Short Name:          \"hw:%i\"", card_number);
       if (check_alsa_device(1) == 0) {
         if ((selems_if_has_db_playback(0, NULL, NULL)) ||
             (selems_if_has_db_playback(1, NULL, NULL))) {
@@ -383,34 +372,34 @@ static int cards(void) {
             selems_if_has_db_playback(1, fp,
                                       sp); // include mixers that also have a capture part
         } else {
-          printf("  No Mixers.\n");
+          inform("  No Mixers.");
         }
       } else {
-        printf("  Shairport Sync can not use this device.\n");
+        inform("  Shairport Sync can not use this device.");
       }
 
-      // printf("Output Device hw:%i: %s [%s], device %i: %s [%s]\n", card_number,
+      // inform("Output Device hw:%i: %s [%s], device %i: %s [%s]", card_number,
       // snd_ctl_card_info_get_id(info),
       //       snd_ctl_card_info_get_name(info), dev, snd_pcm_info_get_id(pcminfo),
       //       snd_pcm_info_get_name(pcminfo));
       /*
       count = snd_pcm_info_get_subdevices_count(pcminfo);
-      printf("  Subdevices: %i/%i\n", snd_pcm_info_get_subdevices_avail(pcminfo), count);
+      inform("  Subdevices: %i/%i", snd_pcm_info_get_subdevices_avail(pcminfo), count);
       for (idx = 0; idx < (int)count; idx++) {
               snd_pcm_info_set_subdevice(pcminfo, idx);
               if ((err = snd_ctl_pcm_info(handle, pcminfo)) < 0) {
-                      error("control digital audio playback info (%i): %s", card,
+                      debug(1,"control digital audio playback info (%i): %s", card,
       snd_strerror(err)); } else { printf("  Subdevice #%i: %s\n", idx,
       snd_pcm_info_get_subdevice_name(pcminfo));
               }
       }
       */
-      printf("\n");
+      inform(""); // newline
     }
     snd_ctl_close(handle);
   next_card:
     if (snd_card_next(&card_number) < 0) {
-      error("snd_card_next");
+      debug(1,"snd_card_next");
       break;
     }
   }
