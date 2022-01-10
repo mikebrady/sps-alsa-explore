@@ -381,7 +381,7 @@ static int cards(void) {
       }
 
       if ((check_alsa_device(1, 0) > 0) || (extended_output != 0)) {
-        inform(">> Device:  \"hw:CARD=%s,DEV=%i\"", snd_ctl_card_info_get_id(info), dev);
+        inform("> Device:  \"hw:CARD=%s,DEV=%i\"", snd_ctl_card_info_get_id(info), dev);
         if (dev > 0)
           inform("  Short Name:          \"hw:%i,%i\"", card_number, dev);
         else
@@ -470,7 +470,14 @@ int main(int argc, char *argv[]) {
       } else if (strcmp(argv[i] + 1, "v") == 0) {
         debug_level = 1;
       } else if (strcmp(argv[i] + 1, "h") == 0) {
-        fprintf(stdout, "    -e     extended information,\n"
+        fprintf(stdout, "This tool scans for ALSA devices that can be used by Shairport Sync.\n"
+                        "It does this by attempting to open each ALSA device for two-channel interleaved operation at\n"
+                        "frame rates that are multiples of 44100, and with signed linear integer formats of 32, 24 and 16 bits,\n"
+                        "ending with 8-bit signed and unsigned linear integer formats.\n"
+                        "If successful, it lists any decibel-mapped mixers found on the device for possible use by Shairport Sync.\n"
+                        "It also lists the frame rate and format that would be chosen by Shairport Sync in automatic mode.\n"
+                        "Command line arguments:\n"
+                        "    -e     extended information -- a little more information about each device,\n"
                         "    -V     print version,\n"
                         "    -v     verbose log,\n"
                         "    -vv    more verbose log,\n"
