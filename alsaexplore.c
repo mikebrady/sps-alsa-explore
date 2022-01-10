@@ -42,6 +42,7 @@
 #define LEVEL_ID (1 << 2)
 
 char card[64];
+int extended_output = 0;
 
 static int selems_if_has_db_playback(int include_mixers_with_capture, char *firstPrompt,
                                      char *subsequentPrompt) {
@@ -303,7 +304,7 @@ int check_alsa_device(int quiet) {
     char information_string[1024];
     information_string[0] = '\0';
     snprintf(information_string, sizeof(information_string) - 1 - strlen(information_string),
-             "    %-6u", sample_rate);
+             "     %-6u", sample_rate);
     // pick formats
     int j = 0;
     do {
@@ -318,7 +319,7 @@ int check_alsa_device(int quiet) {
       if (ret == 0) {
         if (number_of_successes == 0)
           snprintf(information_string + strlen(information_string),
-                   sizeof(information_string) - 1 - strlen(information_string), "             %s",
+                   sizeof(information_string) - 1 - strlen(information_string), "            %s",
                    desc);
         else
           snprintf(information_string + strlen(information_string),
@@ -378,54 +379,62 @@ static int cards(void) {
           debug(1, "control digital audio info (%i): %s", card, snd_strerror(err));
         continue;
       }
-      inform("ALSA Hardware Device:  \"hw:CARD=%s,DEV=%i\"", snd_ctl_card_info_get_id(info), dev);
-      if (dev > 0)
-        inform("  Short Name:          \"hw:%i,%i\"", card_number, dev);
-      else
-        inform("  Short Name:          \"hw:%i\"", card_number);
-      debug(1, "    Card Name: \"%s\"", snd_ctl_card_info_get_name(info));
-      debug(1, "    Device %i PCM ID: \"%s\"", dev, snd_pcm_info_get_id(pcminfo));
-      debug(1, "    Device %i PCM Name: \"%s\"", dev, snd_pcm_info_get_name(pcminfo));
 
-      if (check_alsa_device(1) > 0) {
-        if ((selems_if_has_db_playback(0, NULL, NULL)) ||
-            (selems_if_has_db_playback(1, NULL, NULL))) {
-
-          char fp[] = "  Mixers:              ";
-          char sp[] = "                       ";
-          int found = selems_if_has_db_playback(0, fp,
-                                                sp); // omit mixers that also have a capture part
-          if (found > 0)
-            selems_if_has_db_playback(1, sp,
-                                      sp); // include mixers that also have a capture part
-          else
-            selems_if_has_db_playback(1, fp,
-                                      sp); // include mixers that also have a capture part
-        } else {
-          inform("  No mixers usable by Shairport Sync.");
+      if ((check_alsa_device(1) > 0) || (extended_output != 0)) {
+        inform("ALSA Hardware Device:  \"hw:CARD=%s,DEV=%i\"", snd_ctl_card_info_get_id(info), dev);
+        if (dev > 0)
+          inform("  Short Name:          \"hw:%i,%i\"", card_number, dev);
+        else
+          inform("  Short Name:          \"hw:%i\"", card_number);
+        if (extended_output != 0) {
+          inform("    Card Name:         \"%s\"", snd_ctl_card_info_get_name(info));
+          inform("    Device %i PCM ID:   \"%s\"", dev, snd_pcm_info_get_id(pcminfo));
+          inform("    Device %i PCM Name: \"%s\"", dev, snd_pcm_info_get_name(pcminfo));
         }
-        inform("    Rates and Formats for Shairport Sync:");
-        inform("    FPS                Formats");
-        check_alsa_device(0);
-      } else {
-        inform("  Shairport Sync can not use this device.");
-      }
 
-      /*
-      // subdevices
-      int count = snd_pcm_info_get_subdevices_count(pcminfo);
-      inform("  Subdevices: %i/%i", snd_pcm_info_get_subdevices_avail(pcminfo), count);
-      int idx;
-      for (idx = 0; idx < (int)count; idx++) {
-              snd_pcm_info_set_subdevice(pcminfo, idx);
-              if ((err = snd_ctl_pcm_info(handle, pcminfo)) < 0) {
-                      debug(1,"control digital audio playback info (%i): %s", card,
-      snd_strerror(err)); } else { printf("  Subdevice #%i: %s\n", idx,
-      snd_pcm_info_get_subdevice_name(pcminfo));
-              }
+        if (check_alsa_device(1) > 0) {
+          if ((selems_if_has_db_playback(0, NULL, NULL)) ||
+              (selems_if_has_db_playback(1, NULL, NULL))) {
+
+            char fp[] = "  Possible mixers:     ";
+            char sp[] = "                       ";
+            int found = selems_if_has_db_playback(0, fp,
+                                                  sp); // omit mixers that also have a capture part
+            if (found > 0)
+              selems_if_has_db_playback(1, sp,
+                                        sp); // include mixers that also have a capture part
+            else
+              selems_if_has_db_playback(1, fp,
+                                        sp); // include mixers that also have a capture part
+          } else {
+            if (extended_output != 0)
+              inform("    No mixers usable by Shairport Sync.");
+          }
+          if (extended_output != 0) {
+            inform("    Rates and Formats for Shairport Sync (best first):");
+            inform("     FPS               Formats");
+            check_alsa_device(0);
+          }
+        } else {
+          inform("  Shairport Sync can not use this device.");
+        }
+
+        /*
+        // subdevices
+        int count = snd_pcm_info_get_subdevices_count(pcminfo);
+        inform("  Subdevices: %i/%i", snd_pcm_info_get_subdevices_avail(pcminfo), count);
+        int idx;
+        for (idx = 0; idx < (int)count; idx++) {
+                snd_pcm_info_set_subdevice(pcminfo, idx);
+                if ((err = snd_ctl_pcm_info(handle, pcminfo)) < 0) {
+                        debug(1,"control digital audio playback info (%i): %s", card,
+        snd_strerror(err)); } else { printf("  Subdevice #%i: %s\n", idx,
+        snd_pcm_info_get_subdevice_name(pcminfo));
+                }
+        }
+        */
+        inform(""); // newline
       }
-      */
-      inform(""); // newline
     }
     snd_ctl_close(handle);
   next_card:
@@ -457,12 +466,15 @@ int main(int argc, char *argv[]) {
       } else if (strcmp(argv[i] + 1, "v") == 0) {
         debug_level = 1;
       } else if (strcmp(argv[i] + 1, "h") == 0) {
-        fprintf(stdout, "    -V     print version,\n"
+        fprintf(stdout, "    -e     extended information,\n"
+                        "    -V     print version,\n"
                         "    -v     verbose log,\n"
                         "    -vv    more verbose log,\n"
                         "    -vvv   very verbose log,\n"
                         "    -h     this help text.\n");
         exit(EXIT_SUCCESS);
+      } else if (strcmp(argv[i] + 1, "e") == 0) {
+        extended_output = 1;
       } else {
         fprintf(stdout, "%s -- unknown option. Program terminated.\n", argv[0]);
         exit(EXIT_FAILURE);
