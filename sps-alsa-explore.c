@@ -43,6 +43,7 @@
 
 char card[64];
 int extended_output = 0;
+int check_subdevices = 0;
 
 static int selems_if_has_db_playback(int include_mixers_with_capture, char *firstPrompt,
                                      char *subsequentPrompt) {
@@ -199,7 +200,7 @@ const char *sps_format_description_string(sps_format_t format) {
 int check_alsa_device_with_settings(const char *device, snd_pcm_format_t sample_format, unsigned int sample_rate) {
 
   // returns 0 if successful, -2 if can't set format, -3 if can't set speed
-  // -4 if device is busy, -1 otherwise
+  // -4 if device is busy, -5 if device can't be opened -1 otherwise
   int result = -1;
   int ret, dir = 0;
   ret = snd_pcm_open(&alsa_handle, device, SND_PCM_STREAM_PLAYBACK, 0);
@@ -281,6 +282,7 @@ int check_alsa_device_with_settings(const char *device, snd_pcm_format_t sample_
   } else {
     if (ret == -ENODEV) {
       debug(1, "the alsa output_device \"%s\" can not be opened as .", card);
+      result = -5;
     } else if (ret == -EBUSY) {
       result = -4;
       debug(1, "the alsa output_device \"%s\" is busy.", card);
@@ -322,6 +324,7 @@ int check_alsa_device(const char *device, int quiet, int stop_on_first_success, 
       const char *desc = sps_format_description_string_array[format_check_sequence[j]];
       // debug(1, "check %d, %s", sample_rate, desc );
       ret = check_alsa_device_with_settings(device, sample_format, sample_rate);
+      // -2 and -3 mean the speed or format was not suitable
       if ((ret != 0) && (ret != -2) && (ret != -3))
         response = ret;
       j++;
@@ -389,8 +392,8 @@ static int cards(void) {
       int sub_device_count = snd_pcm_info_get_subdevices_count(pcminfo);
       debug(1, "%d subdevices,", sub_device_count);
 
-      int sub_device;
-      for (sub_device = 0; sub_device < sub_device_count; sub_device++) {
+      int sub_device = 0;
+      do {
         snd_pcm_info_set_subdevice(pcminfo, sub_device);
         snd_pcm_info_set_stream(pcminfo, SND_PCM_STREAM_PLAYBACK);
         if ((err = snd_ctl_pcm_info(handle, pcminfo)) < 0) {
@@ -399,23 +402,38 @@ static int cards(void) {
           continue;
         }
         char device_name[128];
-        sprintf(device_name,"hw:CARD=%s,DEV=%i,SUBDEV=%i",snd_ctl_card_info_get_id(info), dev, sub_device);
+        char short_name[128];
+        if ((sub_device_count <= 1) || (check_subdevices == 0)) {
+          if (dev == 0) {
+            sprintf(device_name,"hw:%s",snd_ctl_card_info_get_id(info));
+            sprintf(short_name,"hw:%i",card_number);
+          } else {
+            sprintf(device_name,"hw:CARD=%s,DEV=%i",snd_ctl_card_info_get_id(info), dev);
+            sprintf(short_name,"hw:%i,%i",card_number, dev);
+          }                    
+        } else {
+          sprintf(device_name,"hw:CARD=%s,DEV=%i,SUBDEV=%i",snd_ctl_card_info_get_id(info), dev, sub_device);
+          sprintf(short_name,"hw:%i,%i,%i", card_number, dev, sub_device);
+        }
         debug(1,"device name: \"%s\"", device_name);
-        debug(1,"card: %d, device: %d, sub_device: %d", card_number, dev, sub_device);
+        if (check_subdevices == 0)
+          debug(1,"card: %d, device: %d", card_number, dev);
+        else
+          debug(1,"card: %d, device: %d, sub_device: %d", card_number, dev, sub_device);
 
         if ((check_alsa_device(device_name, 1, 0, 0) > 0) || (extended_output != 0) ||
-            (check_alsa_device(device_name, 1, 0, 0) == -4)) {
-          inform("> Device:              \"hw:CARD=%s,DEV=%i,SUBDEV=%i\"", snd_ctl_card_info_get_id(info),
-                 dev, sub_device);
-          if (dev > 0)
-            inform("  Short Name:          \"hw:%i,%i,%i\"", card_number, dev, sub_device);
-          //else
-          //  inform("  Short Name:          \"hw:%i\"", card_number);
+            (check_alsa_device(device_name, 1, 0, 0) == -4) ||
+            (check_alsa_device(device_name, 1, 0, 0) == -5)
+            ) {
+          inform("> Device:              \"%s\"", device_name);
+          inform("  Short Name:          \"%s\"", short_name);
+          if ((sub_device_count > 1) && (check_subdevices == 0) && (extended_output))
+            inform("  Subdevices:           %i", sub_device_count);            
           if (extended_output != 0) {
             inform("    Card Name:         \"%s\"", snd_ctl_card_info_get_name(info));
-            inform("    Device ID:   \"%s\"", snd_pcm_info_get_id(pcminfo));
-            inform("    Device Name: \"%s\"", snd_pcm_info_get_name(pcminfo));
-            inform("    Subdevice Name: \"%s\"", snd_pcm_info_get_subdevice_name(pcminfo));
+            inform("    Device ID:         \"%s\"", snd_pcm_info_get_id(pcminfo));
+            inform("    Device Name:       \"%s\"", snd_pcm_info_get_name(pcminfo));
+            inform("    Subdevice Name:    \"%s\"", snd_pcm_info_get_subdevice_name(pcminfo));
           }
 
           if (check_alsa_device(device_name, 1, 0, 0) > 0) {
@@ -439,19 +457,23 @@ static int cards(void) {
                 inform("    No mixers usable by Shairport Sync.");
             }
             if (extended_output == 0) {
-              inform("  Shairport Sync \"auto\" rate and format:");
+              inform("  Suggested rate and format:");
               inform("     Rate              Format");
               check_alsa_device(device_name, 0, 1, 0);
             } else {
               inform(
-                  "    Rates and formats suitable for Shairport Sync (\"auto\" selection first):");
+                  "    Rates and formats suitable for Shairport Sync (suggested setting first):");
               inform("     Rate              Formats");
               check_alsa_device(device_name, 0, 0, 0);
             }
           } else if (check_alsa_device(device_name, 1, 0, 0) == -4) {
             inform(
-                "  This device is already in use and therefore can not be checked at this time.");
-            inform("  To check it, please take it out of use and try again.");
+                "  This device is already in use and can not be checked.");
+            inform("  To check it, you should take it out of use and try again.");
+          } else if (check_alsa_device(device_name, 1, 0, 0) == -5) {
+            inform(
+                "  This device can not be accessed and so can not be checked.");
+            inform("  (Does it need to be configured or connected?)");
           } else {
             inform("  Shairport Sync can not use this device.");
           }
@@ -472,7 +494,8 @@ static int cards(void) {
           */
           inform(""); // newline
         }
-      }
+        sub_device++;
+      } while ((check_subdevices != 0) && (sub_device < sub_device_count));
     }
     snd_ctl_close(handle);
   next_card:
@@ -520,6 +543,7 @@ int main(int argc, char *argv[]) {
                 "take the device out of use and run this tool again.\n"
                 "Command line arguments:\n"
                 "    -e     extended information -- a little more information about each device,\n"
+                "    -s     check every subdevice,\n"
                 "    -V     print version,\n"
                 "    -v     verbose log,\n"
                 "    -vv    more verbose log,\n"
@@ -528,6 +552,8 @@ int main(int argc, char *argv[]) {
         exit(EXIT_SUCCESS);
       } else if (strcmp(argv[i] + 1, "e") == 0) {
         extended_output = 1;
+      } else if (strcmp(argv[i] + 1, "s") == 0) {
+        check_subdevices = 1;
       } else {
         fprintf(stdout, "%s -- unknown option. Program terminated.\n", argv[0]);
         exit(EXIT_FAILURE);
