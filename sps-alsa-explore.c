@@ -470,7 +470,7 @@ static int cards(void) {
             }
           } else if (check_alsa_device(device_name, 1, 0, 0) == -4) {
             inform("  This device is already in use and can not be checked.");
-            inform("  To check it, you should take it out of use and try again.");
+            inform("  To check it, take it out of use and try again.");
           } else if (check_alsa_device(device_name, 1, 0, 0) == -5) {
             inform("  This device can not be accessed and so can not be checked.");
             inform("  (Does it need to be configured or connected?)");
