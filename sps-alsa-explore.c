@@ -197,7 +197,8 @@ const char *sps_format_description_string(sps_format_t format) {
     return sps_format_description_string_array[SPS_FORMAT_INVALID];
 }
 
-int check_alsa_device_with_settings(const char *device, snd_pcm_format_t sample_format, unsigned int sample_rate) {
+int check_alsa_device_with_settings(const char *device, snd_pcm_format_t sample_format,
+                                    unsigned int sample_rate) {
 
   // returns 0 if successful, -2 if can't set format, -3 if can't set speed
   // -4 if device is busy, -5 if device can't be opened -1 otherwise
@@ -295,7 +296,8 @@ int check_alsa_device_with_settings(const char *device, snd_pcm_format_t sample_
   return result;
 }
 
-int check_alsa_device(const char *device, int quiet, int stop_on_first_success, int check_alternate_speeds) {
+int check_alsa_device(const char *device, int quiet, int stop_on_first_success,
+                      int check_alternate_speeds) {
   int response = 0;
   int number_of_formats_to_try = sizeof(format_check_sequence) / sizeof(sps_format_t);
   int number_of_speeds_to_try = sizeof(auto_speed_output_rates) / sizeof(int);
@@ -405,30 +407,30 @@ static int cards(void) {
         char short_name[128];
         if ((sub_device_count <= 1) || (check_subdevices == 0)) {
           if (dev == 0) {
-            sprintf(device_name,"hw:%s",snd_ctl_card_info_get_id(info));
-            sprintf(short_name,"hw:%i",card_number);
+            sprintf(device_name, "hw:%s", snd_ctl_card_info_get_id(info));
+            sprintf(short_name, "hw:%i", card_number);
           } else {
-            sprintf(device_name,"hw:CARD=%s,DEV=%i",snd_ctl_card_info_get_id(info), dev);
-            sprintf(short_name,"hw:%i,%i",card_number, dev);
-          }                    
+            sprintf(device_name, "hw:CARD=%s,DEV=%i", snd_ctl_card_info_get_id(info), dev);
+            sprintf(short_name, "hw:%i,%i", card_number, dev);
+          }
         } else {
-          sprintf(device_name,"hw:CARD=%s,DEV=%i,SUBDEV=%i",snd_ctl_card_info_get_id(info), dev, sub_device);
-          sprintf(short_name,"hw:%i,%i,%i", card_number, dev, sub_device);
+          sprintf(device_name, "hw:CARD=%s,DEV=%i,SUBDEV=%i", snd_ctl_card_info_get_id(info), dev,
+                  sub_device);
+          sprintf(short_name, "hw:%i,%i,%i", card_number, dev, sub_device);
         }
-        debug(1,"device name: \"%s\"", device_name);
+        debug(1, "device name: \"%s\"", device_name);
         if (check_subdevices == 0)
-          debug(1,"card: %d, device: %d", card_number, dev);
+          debug(1, "card: %d, device: %d", card_number, dev);
         else
-          debug(1,"card: %d, device: %d, sub_device: %d", card_number, dev, sub_device);
+          debug(1, "card: %d, device: %d, sub_device: %d", card_number, dev, sub_device);
 
         if ((check_alsa_device(device_name, 1, 0, 0) > 0) || (extended_output != 0) ||
             (check_alsa_device(device_name, 1, 0, 0) == -4) ||
-            (check_alsa_device(device_name, 1, 0, 0) == -5)
-            ) {
+            (check_alsa_device(device_name, 1, 0, 0) == -5)) {
           inform("> Device:              \"%s\"", device_name);
           inform("  Short Name:          \"%s\"", short_name);
           if ((sub_device_count > 1) && (check_subdevices == 0) && (extended_output))
-            inform("  Subdevices:           %i", sub_device_count);            
+            inform("  Subdevices:           %i", sub_device_count);
           if (extended_output != 0) {
             inform("    Card Name:         \"%s\"", snd_ctl_card_info_get_name(info));
             inform("    Device ID:         \"%s\"", snd_pcm_info_get_id(pcminfo));
@@ -467,12 +469,10 @@ static int cards(void) {
               check_alsa_device(device_name, 0, 0, 0);
             }
           } else if (check_alsa_device(device_name, 1, 0, 0) == -4) {
-            inform(
-                "  This device is already in use and can not be checked.");
+            inform("  This device is already in use and can not be checked.");
             inform("  To check it, you should take it out of use and try again.");
           } else if (check_alsa_device(device_name, 1, 0, 0) == -5) {
-            inform(
-                "  This device can not be accessed and so can not be checked.");
+            inform("  This device can not be accessed and so can not be checked.");
             inform("  (Does it need to be configured or connected?)");
           } else {
             inform("  Shairport Sync can not use this device.");
