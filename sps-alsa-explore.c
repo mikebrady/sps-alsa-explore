@@ -81,12 +81,11 @@ static int selems_if_has_db_playback(int include_mixers_with_capture, char *firs
               if (((include_mixers_with_capture == 1) && has_capture_elements) ||
                   ((include_mixers_with_capture == 0) && (!has_capture_elements))) {
                 if (snd_mixer_selem_get_playback_dB_range(elem, &min_db, &max_db) == 0) {
-                  snd_mixer_selem_get_id(elem, sid);
                   if (firstPrompt != NULL) {
                     inform("%s\"%s\"",
                            (firstPromptUsed != 0) && (subsequentPrompt != NULL) ? subsequentPrompt
                                                                                 : firstPrompt,
-                           snd_mixer_selem_id_get_name(sid));
+                           snd_mixer_selem_get_name(elem));
                     firstPromptUsed = 1;
                   }
                   result++;
