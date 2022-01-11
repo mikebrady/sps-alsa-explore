@@ -8,7 +8,7 @@ Version: 1.1-17-g4af18f7
   1. If no subdevice is specified, omit it -- a subdevice will be automatically chosen.
   2. If no subdevice is specified and the device number is zero, omit the device number as well -- the default device number is 0.
 
-   See [here](https://en.wikipedia.org/wiki/Advanced_Linux_Sound_Architecture) for more information.
+   See the "Concepts" section [here](https://en.wikipedia.org/wiki/Advanced_Linux_Sound_Architecture) for more information about naming.
 
 Version: 1.1-8-g620f449
 ====
