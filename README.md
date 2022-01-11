@@ -23,8 +23,27 @@ $ autoreconf -fi
 $ ./configure
 $ make
 ```
-## Using
+## Use and Sample Output
 To run it from the directory in which it was compiled:
 ```
-$ ./sps-alsa-explore
+$ ./sps-alsa-explore 
+> Device:              "hw:Headphones"
+  Short Name:          "hw:0"
+  This device seems suitable for use with Shairport Sync.
+  Possible mixers:     "Headphone"
+  Suggested rate and format:
+     Rate              Format
+     44100             S16_LE
+
+> Device:              "hw:sndrpihifiberry"
+  Short Name:          "hw:1"
+  This device is already in use and can not be checked.
+  To check it, take it out of use and try again.
+
+> Device:              "hw:vc4hdmi"
+  Short Name:          "hw:2"
+  This device can not be accessed and so can not be checked.
+  (Does it need to be configured or connected?)
+
+
 ```
