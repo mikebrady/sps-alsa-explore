@@ -1,3 +1,9 @@
+Version: 1.1-19-gf470a24
+====
+**Enhancement**
+* If no soundcards can be found, suggest that the user should be in the `audio` unix group or that the program should be run as `root`.
+Also update the help text. Thanks to [th0u](https://github.com/th0u) for [#1](https://github.com/mikebrady/sps-alsa-explore/issues/1)!
+
 Version: 1.1-17-g4af18f7
 ====
 **Enhancements**
