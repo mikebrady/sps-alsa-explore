@@ -27,7 +27,7 @@ $ make
 ```
 ## Use and Sample Output
 Note that the user running this tool must be a member of the `audio` group, or must be the `root` user.
-To run this tool from the directory in which it was compiled:
+To run the tool from the directory in which it was compiled:
 ```
 $ ./sps-alsa-explore 
 > Device:              "hw:Headphones"
