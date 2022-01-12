@@ -364,6 +364,9 @@ static int cards(void) {
   card_number = -1;
   if (snd_card_next(&card_number) < 0 || card_number < 0) {
     debug(1, "no soundcards found...");
+    inform("No ALSA soundcards were found.");
+    inform("If this seems incorrect, ensure the user running this tool is in the \"audio\" group.");
+    inform("Alternatively, try running this tool as root user.");
     return -1;
   }
   while (card_number >= 0) {
@@ -526,29 +529,32 @@ int main(int argc, char *argv[]) {
       } else if (strcmp(argv[i] + 1, "v") == 0) {
         debug_level = 1;
       } else if (strcmp(argv[i] + 1, "h") == 0) {
-        fprintf(stdout,
-                "This tool scans for ALSA devices that can be used by Shairport Sync.\n"
-                "It does this by attempting to open each ALSA device for two-channel interleaved "
-                "operation at\n"
-                "frame rates that are multiples of 44100 with linear integer sample formats "
-                "of 32, 24, 16 and 8 bits.\n"
-                "If successful, it lists any decibel-mapped mixers found on the device for "
-                "possible use by Shairport Sync.\n"
-                "It also suggests the frame rate and format that would be chosen by Shairport Sync in "
-                "automatic mode.\n"
-                "Notes:\n"
-                "1. If a device is in use, it can't be checked by this tool. In that case, you should\n"
-                "take the device out of use and run this tool again.\n"
-                "2. If a device can not be accessed, it may mean that it needs to be configured or\n"
-                "connected to an active external device.\n"
-                "Command line arguments:\n"
-                "    -e     extended information -- a little more information about each device,\n"
-                "    -s     check every subdevice,\n"
-                "    -V     print version,\n"
-                "    -v     verbose log,\n"
-                "    -vv    more verbose log,\n"
-                "    -vvv   very verbose log,\n"
-                "    -h     this help text.\n");
+        fprintf(
+            stdout,
+            "This tool scans for ALSA devices that can be used by Shairport Sync.\n"
+            "It does this by attempting to open each ALSA device for two-channel interleaved "
+            "operation at\n"
+            "frame rates that are multiples of 44100 with linear integer sample formats "
+            "of 32, 24, 16 and 8 bits.\n"
+            "If successful, it lists any decibel-mapped mixers found on the device for "
+            "possible use by Shairport Sync.\n"
+            "It also suggests the frame rate and format that would be chosen by Shairport Sync in "
+            "automatic mode.\n"
+            "Notes:\n"
+            "1. This tool must be run by a user that is a member of the \"audio\" unix group\n"
+            "or by the root user. Otherwise no ALSA devices will be found.\n"
+            "2. If a device is in use, it can't be checked by this tool. In that case, you should\n"
+            "take the device out of use and run this tool again.\n"
+            "3. If a device can not be accessed, it may mean that it needs to be configured or\n"
+            "connected to an active external device.\n"
+            "Command line arguments:\n"
+            "    -e     extended information -- a little more information about each device,\n"
+            "    -s     check every subdevice,\n"
+            "    -V     print version,\n"
+            "    -v     verbose log,\n"
+            "    -vv    more verbose log,\n"
+            "    -vvv   very verbose log,\n"
+            "    -h     this help text.\n");
         exit(EXIT_SUCCESS);
       } else if (strcmp(argv[i] + 1, "e") == 0) {
         extended_output = 1;
