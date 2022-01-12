@@ -364,9 +364,9 @@ static int cards(void) {
   card_number = -1;
   if (snd_card_next(&card_number) < 0 || card_number < 0) {
     debug(1, "no soundcards found...");
-    inform("No soundcards were found.");
-    inform("If this seems incorrect, ensure the user is in the \"audio\" group.");
-    inform("Alternatively, try running this program as root user.");
+    inform("No ALSA soundcards were found.");
+    inform("If this seems incorrect, ensure the user running this tool is in the \"audio\" group.");
+    inform("Alternatively, try running this tool as root user.");
     return -1;
   }
   while (card_number >= 0) {
