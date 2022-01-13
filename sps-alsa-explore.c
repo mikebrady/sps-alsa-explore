@@ -543,6 +543,7 @@ static int cards(void) {
   char sound_dir[] = "/dev/snd";
   DIR *dp = opendir(sound_dir);
   if (dp != NULL) {
+    int stat_error = 0;
     int dfd = dirfd(dp); /* Very, very unlikely to fail */
     struct dirent *dirp;
     int sound_devices_found = 0;
@@ -550,8 +551,9 @@ static int cards(void) {
     while ((dirp = readdir(dp)) != NULL) {
       struct stat sb;
       if (fstatat(dfd, dirp->d_name, &sb, 0) == -1) {
-        debug(1, "fstatat(\"%s/%s\") failed (%d: %s)", sound_dir, dirp->d_name, errno,
-              strerror(errno));
+        // debug(1, "fstatat(\"%s/%s\") failed (%d: %s)", sound_dir, dirp->d_name, errno,
+        //       strerror(errno));
+        stat_error = 1;
       } else {
         // debug(1, "fstatat(\"%s/%s\")", sound_dir, dirp->d_name);
         if (((sb.st_mode & S_IFMT) == S_IFCHR) || ((sb.st_mode & S_IFMT) == S_IFBLK)) {
@@ -572,12 +574,12 @@ static int cards(void) {
         }
       }
     }
-    if (sound_devices_found == 0) {
+    if ((sound_devices_found == 0) && (stat_error == 0)) {
       inform("No sound devices were found."); // not necessarily an error
     } else {
       debug(1, "Devices found in the sound devices directory \"%s\": %d, devices accessible: %d.",
             sound_dir, sound_devices_found, sound_devices_accessible);
-      if (sound_devices_found != sound_devices_accessible) {
+      if ((sound_devices_found != sound_devices_accessible) || (stat_error != 0)) {
         // get user name
         struct passwd *result;
         result = getpwuid(getuid());
@@ -587,12 +589,23 @@ static int cards(void) {
 
           struct group *gr = getgrgid(required_gid);
 
-          inform("This check can not be performed because the current user, \"%s\", does not have "
-                 "permission to access sound devices.",
-                 result->pw_name);
-          inform("Adding \"%s\" to the \"%s\" group may fix this. Alternatively, try running this "
-                 "tool as the \"root\" user.",
-                 result->pw_name, gr->gr_name);
+          if (stat_error == 0) {
+            inform(
+                "This check can not be performed because the current user, \"%s\", does not have "
+                "permission to access sound devices.",
+                result->pw_name);
+            inform(
+                "Adding \"%s\" to the \"%s\" group may fix this. Alternatively, try running this "
+                "tool as the \"root\" user.",
+                result->pw_name, gr->gr_name);
+          } else {
+            inform(
+                "This check can not be performed because the current user, \"%s\", does not have "
+                "permission to examine the contents of the sound devices directory \"%s\".",
+                result->pw_name, sound_dir);
+            inform("Try running this tool as the \"root\" user.");
+          }
+
           response = -1;
         } else {
           inform("This check can not be performed because the current user, \"%s\", does not have "
