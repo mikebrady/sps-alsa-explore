@@ -565,7 +565,7 @@ static int cards(void) {
             // debug(1,"Can access \"%s\".", dirp->d_name);
             sound_devices_accessible++;
           } else {
-            debug(1, "Unable to access \"%s\".", dirp->d_name);
+            // debug(1, "Unable to access \"%s\".", dirp->d_name);
             if (required_gid_set == 0) {
               required_gid = sb.st_gid;
               required_gid_set = 1;
