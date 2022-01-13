@@ -27,15 +27,20 @@
 #include <alsa/asoundlib.h>
 #include <assert.h>
 #include <ctype.h>
+#include <dirent.h>
 #include <errno.h>
+#include <fcntl.h> /* Definition of AT_* constants */
 #include <getopt.h>
+#include <grp.h>
 #include <math.h>
 #include <poll.h>
+#include <pwd.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #define LEVEL_BASIC (1 << 0)
 #define LEVEL_INACTIVE (1 << 1)
@@ -81,11 +86,34 @@ static int selems_if_has_db_playback(int include_mixers_with_capture, char *firs
               if (((include_mixers_with_capture == 1) && has_capture_elements) ||
                   ((include_mixers_with_capture == 0) && (!has_capture_elements))) {
                 if (snd_mixer_selem_get_playback_dB_range(elem, &min_db, &max_db) == 0) {
+                  if (min_db == SND_CTL_TLV_DB_GAIN_MUTE) {
+                    // For instance, the Raspberry Pi does this
+                    debug(1, "Lowest dB value is a mute");
+                    long minv = 0;
+                    long maxv = 0;
+                    if (snd_mixer_selem_get_playback_volume_range(elem, &minv, &maxv) < 0)
+                      debug(1, "Can't read mixer's [linear] min and max volumes.");
+
+                    if (snd_mixer_selem_ask_playback_vol_dB(elem, minv + 1, &min_db) != 0)
+                      debug(1, "Can't get dB value corresponding to a minimum volume "
+                               "+ 1.");
+                  }
                   if (firstPrompt != NULL) {
-                    inform("%s\"%s\"",
-                           (firstPromptUsed != 0) && (subsequentPrompt != NULL) ? subsequentPrompt
-                                                                                : firstPrompt,
-                           snd_mixer_selem_get_name(elem));
+
+                    if (extended_output == 0)
+                      inform("%s\"%s\"%*sRange: %6.2f dB",
+                             (firstPromptUsed != 0) && (subsequentPrompt != NULL) ? subsequentPrompt
+                                                                                  : firstPrompt,
+                             snd_mixer_selem_get_name(elem),
+                             20 - strlen(snd_mixer_selem_get_name(elem)), " ",
+                             (max_db - min_db) * 0.01);
+                    else
+                      inform("%s\"%s\"%*sRange: %6.2f dB, max: %6.2f dB, min: %6.2f dB",
+                             (firstPromptUsed != 0) && (subsequentPrompt != NULL) ? subsequentPrompt
+                                                                                  : firstPrompt,
+                             snd_mixer_selem_get_name(elem),
+                             20 - strlen(snd_mixer_selem_get_name(elem)), " ",
+                             (max_db - min_db) * 0.01, max_db * 0.01, min_db * 0.01);
                     firstPromptUsed = 1;
                   }
                   result++;
@@ -281,7 +309,7 @@ int check_alsa_device_with_settings(const char *device, snd_pcm_format_t sample_
     snd_pcm_close(alsa_handle);
   } else {
     if (ret == -ENODEV) {
-      debug(1, "the alsa output_device \"%s\" can not be opened as .", card);
+      debug(1, "the alsa output_device \"%s\" can not be opened.", card);
       result = -5;
     } else if (ret == -EBUSY) {
       result = -4;
@@ -354,6 +382,7 @@ int check_alsa_device(const char *device, int quiet, int stop_on_first_success,
 }
 
 static int cards(void) {
+  int response = 0;
   snd_ctl_t *handle;
   int card_number, err, dev;
   snd_ctl_card_info_t *info;
@@ -362,13 +391,11 @@ static int cards(void) {
   snd_pcm_info_alloca(&pcminfo);
 
   card_number = -1;
-  if (snd_card_next(&card_number) < 0 || card_number < 0) {
-    debug(1, "no soundcards found...");
-    inform("No ALSA soundcards were found.");
-    inform("If this seems incorrect, ensure the user running this tool is in the \"audio\" group.");
-    inform("Alternatively, try running this tool as root user.");
-    return -1;
-  }
+  snd_card_next(&card_number);
+
+  // if (snd_card_next(&card_number) < 0 || card_number < 0) {
+  //  debug(1, "no soundcards found...");
+  //}
   while (card_number >= 0) {
     sprintf(card, "hw:%d", card_number);
     if ((err = snd_ctl_open(&handle, card, 0)) < 0) {
@@ -384,9 +411,9 @@ static int cards(void) {
     while (1) {
       if (snd_ctl_pcm_next_device(handle, &dev) < 0)
         debug(1, "snd_ctl_pcm_next_device");
-      debug(1, "card number %d, device number: %d.", card_number, dev);
       if (dev < 0)
         break;
+      debug(1, "card number %d, device number: %d.", card_number, dev);
       snd_pcm_info_set_device(pcminfo, dev);
       snd_pcm_info_set_subdevice(pcminfo, 0);
       if ((err = snd_ctl_pcm_info(handle, pcminfo)) < 0) {
@@ -461,7 +488,8 @@ static int cards(void) {
                 inform("    No mixers usable by Shairport Sync.");
             }
             if (extended_output == 0) {
-              inform("  Suggested rate and format:");
+              inform("  The following rate and format will be chosen by Shairport Sync in \"auto\" "
+                     "mode:");
               inform("     Rate              Format");
               check_alsa_device(device_name, 0, 1, 0);
             } else {
@@ -506,7 +534,89 @@ static int cards(void) {
       break;
     }
   }
-  return 0;
+
+  // now do a check on access to devices, even if they were found and listed.
+
+  gid_t required_gid = 0;   // store the owner gid of the first inaccessible device
+  int required_gid_set = 0; // flag to prevent overwrite of first device
+  // get to /dev/snd
+  char sound_dir[] = "/dev/snd";
+  DIR *dp = opendir(sound_dir);
+  if (dp != NULL) {
+    int dfd = dirfd(dp); /* Very, very unlikely to fail */
+    struct dirent *dirp;
+    int sound_devices_found = 0;
+    int sound_devices_accessible = 0;
+    while ((dirp = readdir(dp)) != NULL) {
+      struct stat sb;
+      if (fstatat(dfd, dirp->d_name, &sb, 0) == -1) {
+        debug(1, "fstatat(\"%s/%s\") failed (%d: %s)", sound_dir, dirp->d_name, errno,
+              strerror(errno));
+      } else {
+        // debug(1, "fstatat(\"%s/%s\")", sound_dir, dirp->d_name);
+        if (((sb.st_mode & S_IFMT) == S_IFCHR) || ((sb.st_mode & S_IFMT) == S_IFBLK)) {
+          sound_devices_found++;
+          char device_pathname[4096];
+          snprintf(device_pathname, sizeof(device_pathname) - 1, "%s/%s", sound_dir, dirp->d_name);
+          // debug(1,"Checking access to \"%s\"", device_pathname);
+          if (access(device_pathname, R_OK | W_OK) == 0) {
+            // debug(1,"Can access \"%s\".", dirp->d_name);
+            sound_devices_accessible++;
+          } else {
+            debug(1, "Unable to access \"%s\".", dirp->d_name);
+            if (required_gid_set == 0) {
+              required_gid = sb.st_gid;
+              required_gid_set = 1;
+            }
+          }
+        }
+      }
+    }
+    if (sound_devices_found == 0) {
+      inform("No sound devices were found."); // not necessarily an error
+    } else {
+      debug(1, "Devices found in the sound devices directory \"%s\": %d, devices accessible: %d.",
+            sound_dir, sound_devices_found, sound_devices_accessible);
+      if (sound_devices_found != sound_devices_accessible) {
+        // get user name
+        struct passwd *result;
+        result = getpwuid(getuid());
+        if (sound_devices_accessible == 0) {
+          // get the name of the group of the first inaccessible device. In most cases, it will be
+          // "audio" and will bethe same for all inaccessible devices.
+
+          struct group *gr = getgrgid(required_gid);
+
+          inform("This check can not be performed because the current user, \"%s\", does not have "
+                 "permission to access sound devices.",
+                 result->pw_name);
+          inform("Adding \"%s\" to the \"%s\" group may fix this. Alternatively, try running this "
+                 "tool as the \"root\" user.",
+                 result->pw_name, gr->gr_name);
+          response = -1;
+        } else {
+          inform("This check can not be performed because the current user, \"%s\", does not have "
+                 "permission to access all sound devices.",
+                 result->pw_name);
+          inform("To fix this, check the permissions of items in the standard sound device "
+                 "directory \"%s\".",
+                 sound_dir);
+          inform("Alternatively, try running this tool as the \"root\" user.");
+          response = -1;
+        }
+      }
+    }
+    closedir(dp);
+  } else {
+    response = -1;
+    if (errno == ENOENT) {
+      inform("The standard sound device directory \"%s\" was not found.", sound_dir);
+    } else {
+      inform("The standard sound device directory \"%s\" could not be accessed. (Error %d: %s).",
+             sound_dir, errno, strerror(errno));
+    }
+  }
+  return response;
 }
 
 int main(int argc, char *argv[]) {
