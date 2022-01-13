@@ -1,3 +1,10 @@
+Version: 1.1-34-gba97928
+====
+**Enhancement**
+* Check for a variety of access or permission issues and try to output sensible messages. If necessary, discover the name of the unix group of one of the devices. Typically -- but not always -- that group is `audio` and is the group of all sound devices.
+* Check for issues always.
+* List the range of attenuation of any decibel-mapped mixers. It might be useful when trying to figure out which to use for Shairport Sync.
+
 Version: 1.1-19-gf470a24
 ====
 **Enhancement**
