@@ -29,11 +29,12 @@ $ make
 Note that the user running this tool must be a member of the `audio` group, or must be the `root` user.
 To run the tool from the directory in which it was compiled:
 ```
-$ ./sps-alsa-explore 
-> Device:              "hw:Headphones"
+$ ./sps-alsa-explore
+> Device:              "hw:Intel"
   Short Name:          "hw:0"
   This device seems suitable for use with Shairport Sync.
-  Possible mixers:     "Headphone"           Range: 106.38 dB
+  Possible mixers:     "Master"              Range:  74.00 dB
+                       "PCM"                 Range:  51.00 dB
   The following rate and format will be chosen by Shairport Sync in "auto" mode:
      Rate              Format
      44100             S16_LE
