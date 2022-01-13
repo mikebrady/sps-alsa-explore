@@ -49,4 +49,4 @@ $ ./sps-alsa-explore
   This device can not be accessed and so can not be checked.
   (Does it need to be configured or connected?)
 ```
-Unfortunately, there doesn't seem to be a consistent or logical way to tell which of the possible mixers is the best one to use.
+Unfortunately, there doesn't seem to be a consistent or logical way to tell which mixer is the best one to use.
