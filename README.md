@@ -33,8 +33,8 @@ $ ./sps-alsa-explore
 > Device:              "hw:Headphones"
   Short Name:          "hw:0"
   This device seems suitable for use with Shairport Sync.
-  Possible mixers:     "Headphone"
-  Suggested rate and format:
+  Possible mixers:     "Headphone"           Range: 106.38 dB
+  The following rate and format will be chosen by Shairport Sync in "auto" mode:
      Rate              Format
      44100             S16_LE
 
@@ -47,6 +47,4 @@ $ ./sps-alsa-explore
   Short Name:          "hw:2"
   This device can not be accessed and so can not be checked.
   (Does it need to be configured or connected?)
-
-
 ```
