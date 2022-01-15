@@ -9,6 +9,9 @@ If successful, it lists any decibel-mapped mixers found on the device for possib
 
 It also suggests the frame rate and format that would be chosen by Shairport Sync in automatic mode.
 
+## Docker Image
+`sps-alsa-explore` is available on the Docker Hub at [mikebrady/sps-alsa-explore](https://hub.docker.com/r/mikebrady/sps-alsa-explore).
+Alternatively, you can build it using the following guide.
 
 ## Building
 In the commands below, note the convention that a `#` prompt means you are in superuser mode and a `$` prompt means you are in a regular unprivileged user mode. You can use `sudo` *("SUperuser DO")* to temporarily promote yourself from user to superuser, if permitted. For example, if you want to execute `apt-get update` in superuser mode and you are in user mode, enter `sudo apt-get update`.
