@@ -108,7 +108,7 @@ static int selems_if_has_db_playback(int include_mixers_with_capture, char *firs
                              20 - strlen(snd_mixer_selem_get_name(elem)), " ",
                              (max_db - min_db) * 0.01);
                     else
-                      inform("%s\"%s\",%d, %*sRange: %6.2f dB, max: %6.2f dB, min: %6.2f dB",
+                      inform("%s\"%s\",%d%*sRange: %6.2f dB, max: %6.2f dB, min: %6.2f dB",
                              (firstPromptUsed != 0) && (subsequentPrompt != NULL) ? subsequentPrompt
                                                                                   : firstPrompt,
                              snd_mixer_selem_get_name(elem), snd_mixer_selem_get_index(elem),
