@@ -489,7 +489,7 @@ static int cards(void) {
                 inform("    No mixers usable by Shairport Sync.");
             }
             if (extended_output == 0) {
-              inform("  The following rate and format will be chosen by Shairport Sync in \"auto\" "
+              inform("  The following rate and format would be chosen by Shairport Sync in \"auto\" "
                      "mode:");
               inform("     Rate              Format");
               check_alsa_device(device_name, 0, 1, 0);
@@ -670,13 +670,14 @@ int main(int argc, char *argv[]) {
             "1. This tool must be run by a user that is a member of the \"audio\" unix group\n"
             "   or by the root user. Otherwise no ALSA devices will be found.\n"
             "2. Make sure any HDMI devices you wish to check are plugged in, turned on\n"
-            "   and enabled when the machine boots up. Reboot if necessary."
+            "   and enabled when the machine boots up. Reboot if necessary.\n"
             "3. If a device is in use, it can't be checked by this tool. In that case, you should\n"
             "   take the device out of use and run this tool again.\n"
             "4. If a device can not be accessed, it may mean that it needs to be configured or\n"
             "   connected to an active external device.\n"
             "5. Use the \"Device Full Name\" when specifying the device in the Shairport Sync\n"
             "   configuration file or on the Shairport Sync command line.\n"
+            "   (The \"Short Name\" can change between reboots.)\n"
 
             "Command line arguments:\n"
             "    -e     extended information -- a little more information about each device,\n"
