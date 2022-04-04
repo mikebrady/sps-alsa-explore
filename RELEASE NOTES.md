@@ -1,8 +1,16 @@
+Version: 1.1-50-g62c540e
+====
+**Bug Fix**
+* If a device could only support formats that were unsuitable for Shairport Sync, it was omitted from the list of devices completely. Fixed.
+
+**Enhancement**
+* Updated help messages.
+
 Version: 1.1-34-gba97928
 ====
 **Enhancement**
-* Check for a variety of access or permission issues and try to output sensible messages. If necessary, discover the name of the unix group of one of the devices. Typically -- but not always -- all sound devices have the same group, and that group is `audio`.
-* List the range of attenuation of any decibel-mapped mixers. It might be useful when trying to figure out which to use for Shairport Sync.
+* Check for a variety of access or permission issues and try to output sensible messages. If necessary, discover the name of the unix group of one of the devices. All sound devices usually have the same group, and that group is `audio`.
+* List the range of attenuation of any decibel-mapped mixers. Helpful for trying to figure out which to use for Shairport Sync.
 
 Version: 1.1-19-gf470a24
 ====
