@@ -9,6 +9,9 @@ If successful, it lists any decibel-mapped mixers found on the device for possib
 
 It also suggests the frame rate and format that would be chosen by Shairport Sync in automatic mode.
 
+## Docker Image
+`sps-alsa-explore` is available on the Docker Hub at [mikebrady/sps-alsa-explore](https://hub.docker.com/r/mikebrady/sps-alsa-explore).
+Alternatively, you can build it using the following guide.
 
 ## Building
 In the commands below, note the convention that a `#` prompt means you are in superuser mode and a `$` prompt means you are in a regular unprivileged user mode. You can use `sudo` *("SUperuser DO")* to temporarily promote yourself from user to superuser, if permitted. For example, if you want to execute `apt-get update` in superuser mode and you are in user mode, enter `sudo apt-get update`.
@@ -29,11 +32,12 @@ $ make
 Note that the user running this tool must be a member of the `audio` group, or must be the `root` user.
 To run the tool from the directory in which it was compiled:
 ```
-$ ./sps-alsa-explore 
-> Device:              "hw:Headphones"
+$ ./sps-alsa-explore
+> Device:              "hw:Intel"
   Short Name:          "hw:0"
   This device seems suitable for use with Shairport Sync.
-  Possible mixers:     "Headphone"           Range: 106.38 dB
+  Possible mixers:     "Master"              Range:  74.00 dB
+                       "PCM"                 Range:  51.00 dB
   The following rate and format will be chosen by Shairport Sync in "auto" mode:
      Rate              Format
      44100             S16_LE
@@ -48,4 +52,4 @@ $ ./sps-alsa-explore
   This device can not be accessed and so can not be checked.
   (Does it need to be configured or connected?)
 ```
-Unfortunately, there doesn't seem to be a consistent or logical way to tell which of the possible mixers is the best one to use.
+Unfortunately, there doesn't seem to be a consistent or logical way to tell which mixer is the best one to use.
