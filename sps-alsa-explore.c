@@ -353,6 +353,7 @@ int check_alsa_device(const char *device, int quiet, int stop_on_first_success,
       const char *desc = sps_format_description_string_array[format_check_sequence[j]];
       // debug(1, "check %d, %s", sample_rate, desc );
       ret = check_alsa_device_with_settings(device, sample_format, sample_rate);
+      debug(1, "check %d, %s, result: %d.", sample_rate, desc, ret);
       // -2 and -3 mean the speed or format was not suitable
       if ((ret != 0) && (ret != -2) && (ret != -3))
         response = ret;
@@ -453,10 +454,10 @@ static int cards(void) {
         else
           debug(1, "card: %d, device: %d, sub_device: %d", card_number, dev, sub_device);
 
-        if ((check_alsa_device(device_name, 1, 0, 0) > 0) || (extended_output != 0) ||
+        if ((check_alsa_device(device_name, 1, 0, 0) >= 0) || (extended_output != 0) ||
             (check_alsa_device(device_name, 1, 0, 0) == -4) ||
             (check_alsa_device(device_name, 1, 0, 0) == -5)) {
-          inform("> Device:              \"%s\"", device_name);
+          inform("> Device Full Name:    \"%s\"", device_name);
           inform("  Short Name:          \"%s\"", short_name);
           if ((sub_device_count > 1) && (check_subdevices == 0) && (extended_output))
             inform("  Subdevices:           %i", sub_device_count);
@@ -494,7 +495,7 @@ static int cards(void) {
               check_alsa_device(device_name, 0, 1, 0);
             } else {
               inform(
-                  "    Rates and formats suitable for Shairport Sync (suggested setting first):");
+                  "    Suitable rates and formats (suggested setting first):");
               inform("     Rate              Formats");
               check_alsa_device(device_name, 0, 0, 0);
             }
@@ -504,6 +505,8 @@ static int cards(void) {
           } else if (check_alsa_device(device_name, 1, 0, 0) == -5) {
             inform("  This device can not be accessed and so can not be checked.");
             inform("  (Does it need to be configured or connected?)");
+          } else if (check_alsa_device(device_name, 1, 0, 1) > 0) {
+            inform("  Shairport Sync can not use this device because it does not accept suitable audio formats.");
           } else {
             inform("  Shairport Sync can not use this device.");
           }
@@ -665,11 +668,16 @@ int main(int argc, char *argv[]) {
             "automatic mode.\n"
             "Notes:\n"
             "1. This tool must be run by a user that is a member of the \"audio\" unix group\n"
-            "or by the root user. Otherwise no ALSA devices will be found.\n"
-            "2. If a device is in use, it can't be checked by this tool. In that case, you should\n"
-            "take the device out of use and run this tool again.\n"
-            "3. If a device can not be accessed, it may mean that it needs to be configured or\n"
-            "connected to an active external device.\n"
+            "   or by the root user. Otherwise no ALSA devices will be found.\n"
+            "2. Make sure any HDMI devices you wish to check are plugged in, turned on\n"
+            "   and enabled when the machine boots up. Reboot if necessary."
+            "3. If a device is in use, it can't be checked by this tool. In that case, you should\n"
+            "   take the device out of use and run this tool again.\n"
+            "4. If a device can not be accessed, it may mean that it needs to be configured or\n"
+            "   connected to an active external device.\n"
+            "5. Use the \"Device Full Name\" when specifying the device in the Shairport Sync\n"
+            "   configuration file or on the Shairport Sync command line.\n"
+
             "Command line arguments:\n"
             "    -e     extended information -- a little more information about each device,\n"
             "    -s     check every subdevice,\n"
