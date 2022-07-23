@@ -166,6 +166,7 @@ unsigned int auto_speed_output_rates[] = {
 };
 
 unsigned int alternate_speed_output_rates[] = {
+    8000,
     48000,
     96000,
     192000,
@@ -282,16 +283,17 @@ int check_alsa_device_with_settings(const char *device, snd_pcm_format_t sample_
               } else {
                 debug(1, "unable to set hardware parameters for device \"%s\": %s.", card,
                       snd_strerror(ret));
+                result = -6; // -6 means the device finally complained when writing the hardware settings
               }
             } else {
               debug(2, "could not set output rate %u for device \"%s\": %s", actual_sample_rate,
                     card, snd_strerror(ret));
-              result = -3;
+              result = -3; // -3 means can't set rate
             }
           } else {
             debug(2, "could not set output format %d for device \"%s\": %s", sample_format, card,
                   snd_strerror(ret));
-            result = -2;
+            result = -2; // -3 means can't set format
           }
         } else {
           debug(1, "stereo output not available for device \"%s\": %s", card, snd_strerror(ret));
@@ -354,8 +356,8 @@ int check_alsa_device(const char *device, int quiet, int stop_on_first_success,
       // debug(1, "check %d, %s", sample_rate, desc );
       ret = check_alsa_device_with_settings(device, sample_format, sample_rate);
       debug(1, "check %d, %s, result: %d.", sample_rate, desc, ret);
-      // -2 and -3 mean the speed or format was not suitable
-      if ((ret != 0) && (ret != -2) && (ret != -3))
+      // -2 and -3 mean the speed or format was not suitable and -6 means some setting was not acceptable
+      if ((ret != 0) && (ret != -2) && (ret != -3) && (ret != -6)) // errors 2, 3 and 6 relate to an individual rejected setting
         response = ret;
       j++;
       if (ret == 0) {
@@ -373,13 +375,13 @@ int check_alsa_device(const char *device, int quiet, int stop_on_first_success,
              (!((stop_on_first_success != 0) && (response == 1))));
     if ((number_of_successes > 0) && (quiet == 0))
       inform(information_string);
-    if ((ret != 0) && (ret != -2) && (ret != -3))
+    if ((ret != 0) && (ret != -2) && (ret != -3) && (ret != -6)) // errors 2, 3 and 6 are ignored as they are transient
       response = ret;
     i++;
   } while ((i < number_of_speeds_to_try) && (response >= 0) &&
            (!((stop_on_first_success != 0) && (response == 1))));
 
-  return response; // -1 if a problem arose, number of successes otherwise
+  return response; // -1 if a problem arose, -4 or -5 if busy or inaccessible, number of successes otherwise
 }
 
 static int cards(void) {
