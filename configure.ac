@@ -14,7 +14,7 @@ PKG_PROG_PKG_CONFIG([0.9.0])
 
 AC_CHECK_PROGS([GIT], [git])
 if test -n "$GIT" && test -e ".git/index" ; then
-  AC_DEFINE([CONFIG_USE_GIT_VERSION_STRING], 1, [Use the version string produced by running 'git describe --dirty'.])
+  AC_DEFINE([CONFIG_USE_GIT_VERSION_STRING], 1, [Use the version string produced by running 'git describe --tags --dirty --broken'.])
 fi
 AM_CONDITIONAL([USE_GIT_VERSION], [test -n "$GIT" && test -e ".git/index" ])
 
