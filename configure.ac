@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.50])
-AC_INIT([sps-alsa-explore], [1.2.1-dev], [4265913+mikebrady@users.noreply.github.com])
+AC_INIT([sps-alsa-explore], [1.2.1], [4265913+mikebrady@users.noreply.github.com])
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([sps-alsa-explore.c])
 AC_CONFIG_HEADERS([config.h])
