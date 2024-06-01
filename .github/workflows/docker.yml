@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.5.2
         with:
           fetch-depth: 0
           ref: ${{github.event.pull_request.head.ref}}
@@ -70,7 +70,6 @@ jobs:
       - name: Is branch "experimental"?
         if: ${{ env.SPS_ALSA_EXPLORE_BRANCH == 'experimental' }}
         run: |
-          echo "NQPTP_BRANCH=experimental" >> $GITHUB_ENV
           echo "IMAGE_TAG_BASE=experimental" >> $GITHUB_ENV
 
       - name: Set up QEMU
@@ -89,7 +88,7 @@ jobs:
         uses: docker/build-push-action@v4.0.0
         with:
           context: ./
-          file: ./docker/Dockerfile
+          file: ./Dockerfile
           platforms: ${{ env.DOCKER_PLATFORMS }}
           push: ${{ env.IMAGE_TAG_BASE != '' }}
           tags: ${{ secrets.DOCKER_IMAGE_NAME }}:${{ env.IMAGE_TAG_BASE }}
