@@ -43,7 +43,7 @@ jobs:
             --tag ${IMAGE_NAME}:${VERSION} \
             .
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: crazy-max/ghaction-docker-buildx@v1.2.1
 
       - name: Build
