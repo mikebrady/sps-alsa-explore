@@ -1,3 +1,11 @@
+Version: 1.2-dev
+===
+**Enhancement**
+* If a device is identified as a HDMI device, use the `hdmi:` prefix rather than the `hw:` prefix.
+* With the extra output option, `-e`, list speeds that Shairport Sync doesn't use.
+* Suggest what to do if a HDMI device returns error 524 -- plug up target device, switch it on, reboot this device.
+* Error 524 seems to mean the HDMI stuff hasn't/can't be initialised.
+
 Version: 1.1-50-g62c540e
 ====
 **Bug Fix**
