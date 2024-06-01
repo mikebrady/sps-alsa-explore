@@ -91,6 +91,6 @@ jobs:
           file: ./Dockerfile
           platforms: ${{ env.DOCKER_PLATFORMS }}
           push: ${{ env.IMAGE_TAG_BASE != '' }}
-          tags: ${{ secrets.DOCKER_IMAGE_NAME }}:${{ env.IMAGE_TAG_BASE }}
+          tags: ${{ 'sps-alsa-explore' }}:${{ env.IMAGE_TAG_BASE }}
           build-args: |
             SPS_ALSA_EXPLORE_BRANCH=${{ env.SPS_ALSA_EXPLORE_BRANCH }}
