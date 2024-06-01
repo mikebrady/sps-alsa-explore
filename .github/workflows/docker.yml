@@ -8,6 +8,8 @@ name: Build and push docker (push/pull request)
 
 on:
   workflow_dispatch:
+  release:
+    types: [published]
   push:
     branches:
       - master
