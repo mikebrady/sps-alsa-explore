@@ -1,0 +1,98 @@
+# Builds a docker image when a commit is made. Also pushes the build if the branch is 'master' or 'development'.
+
+# Tag pattern
+# 'master'      - rolling
+# 'experimental' - experimental
+
+name: Build and push docker (push/pull request)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - experimental
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+env:
+  DOCKER_PLATFORMS: linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64
+
+jobs:
+  test-build-on-pull-request:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{github.event.pull_request.head.ref}}
+          repository: ${{github.event.pull_request.head.repo.full_name}}
+  
+      - name: Set SPS_ALSA_EXPLORE_BRANCH env
+        run: |
+          SPS_ALSA_EXPLORE_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          echo "Current SPS_ALSA_EXPLORE_BRANCH set to ${SPS_ALSA_EXPLORE_BRANCH}"
+          echo "SPS_ALSA_EXPLORE_BRANCH=${SPS_ALSA_EXPLORE_BRANCH}" >> $GITHUB_ENV
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2.1.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2.5.0
+
+      - name: Build
+        uses: docker/build-push-action@v4.0.0
+        with:
+          context: ./
+          file: ./Dockerfile
+          push: false
+          build-args: |
+            SPS_ALSA_EXPLORE_BRANCH=${{ env.SPS_ALSA_EXPLORE_BRANCH }}
+
+  build-and-publish:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+        with:
+          fetch-depth: 0
+
+      - name: Set SPS_ALSA_EXPLORE_BRANCH env.
+        run: echo "SPS_ALSA_EXPLORE_BRANCH=${GITHUB_REF##*/}" >> $GITHUB_ENV
+
+      - name: Is branch "master"?
+        if: ${{ env.SPS_ALSA_EXPLORE_BRANCH == 'master' }}
+        run: |
+          echo "IMAGE_TAG_BASE=rolling" >> $GITHUB_ENV
+
+      - name: Is branch "experimental"?
+        if: ${{ env.SPS_ALSA_EXPLORE_BRANCH == 'experimental' }}
+        run: |
+          echo "NQPTP_BRANCH=experimental" >> $GITHUB_ENV
+          echo "IMAGE_TAG_BASE=experimental" >> $GITHUB_ENV
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2.1.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2.5.0
+
+      - name: Login to Docker Registry
+        uses: docker/login-action@v2.1.0
+        with:
+          registry: ${{ secrets.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_REGISTRY_USER }}
+          password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
+ 
+      - name: Build and push
+        uses: docker/build-push-action@v4.0.0
+        with:
+          context: ./
+          file: ./docker/Dockerfile
+          platforms: ${{ env.DOCKER_PLATFORMS }}
+          push: ${{ env.IMAGE_TAG_BASE != '' }}
+          tags: ${{ secrets.DOCKER_IMAGE_NAME }}:${{ env.IMAGE_TAG_BASE }}
+          build-args: |
+            SPS_ALSA_EXPLORE_BRANCH=${{ env.SPS_ALSA_EXPLORE_BRANCH }}
