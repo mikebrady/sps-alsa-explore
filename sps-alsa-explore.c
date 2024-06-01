@@ -428,7 +428,6 @@ static int cards(void) {
     void **hints;
     char device_type[64];
     int hdmi_hint = 0;
-    int hw_hint = 0;
     if (snd_device_name_hint(card_number, "pcm", &hints) == 0) {
       void **device_on_card_hints = hints;
       while (*device_on_card_hints != NULL) {
@@ -444,8 +443,6 @@ static int cards(void) {
         debug(3, "device_type: \"%s\".", device_type);
         if (strcmp(device_type, "hdmi") == 0)
           hdmi_hint = 1;
-        if (strcmp(device_type, "hw") == 0)
-          hw_hint = 1;
         device_on_card_hints++;
       }
       snd_device_name_free_hint(hints);
