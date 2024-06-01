@@ -1,3 +1,15 @@
+Version: 1.2
+===
+This is version 1.2-dev.
+
+Version: 1.2-dev
+===
+**Enhancement**
+* If a device is identified as a HDMI device, use the `hdmi:` prefix rather than the `hw:` prefix.
+* With the extra output option, `-e`, list speeds that Shairport Sync doesn't use.
+* Suggest what to do if a HDMI device returns error 524 -- plug up target device, switch it on, reboot this device.
+* Error 524 seems to mean the HDMI stuff hasn't/can't be initialised.
+
 Version: 1.1-50-g62c540e
 ====
 **Bug Fix**
@@ -8,9 +20,8 @@ Version: 1.1-50-g62c540e
 
 Version: 1.1-34-gba97928
 ====
-**Enhancement**
-* Check for a variety of access or permission issues and try to output sensible messages. If necessary, discover the name of the unix group of one of the devices. All sound devices usually have the same group, and that group is `audio`.
-* List the range of attenuation of any decibel-mapped mixers. Helpful for trying to figure out which to use for Shairport Sync.
+* Check for a variety of access or permission issues and try to output sensible messages. If necessary, discover the name of the unix group of one of the devices. Typically -- but not always -- all sound devices have the same group, and that group is `audio`.
+* List the range of attenuation of any decibel-mapped mixers. It might be useful when trying to figure out which to use for Shairport Sync.
 
 Version: 1.1-19-gf470a24
 ====

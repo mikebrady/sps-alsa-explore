@@ -1,6 +1,6 @@
 /*
- * This file is part of the sps-alsa-explore distribution (https://github.com/mikebrady/sps-alsa-explore).
- * Copyright (c) 2021-2023 Mike Brady.
+ * This file is part of the sps-alsa-explore distribution
+ * (https://github.com/mikebrady/sps-alsa-explore). Copyright (c) 2021-2024 Mike Brady.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
