@@ -1,7 +1,7 @@
 # Builds a docker image when a commit is made. Also pushes the build if the branch is 'master' or 'development'.
 
 # Tag pattern
-# 'master'      - rolling
+# 'master'      - latest
 # 'experimental' - experimental
 
 name: Build and push docker (push/pull request)
@@ -10,6 +10,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - master
       - experimental
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -65,7 +66,7 @@ jobs:
       - name: Is branch "master"?
         if: ${{ env.SPS_ALSA_EXPLORE_BRANCH == 'master' }}
         run: |
-          echo "IMAGE_TAG_BASE=rolling" >> $GITHUB_ENV
+          echo "IMAGE_TAG_BASE=latest" >> $GITHUB_ENV
 
       - name: Is branch "experimental"?
         if: ${{ env.SPS_ALSA_EXPLORE_BRANCH == 'experimental' }}
