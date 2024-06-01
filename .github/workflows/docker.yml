@@ -8,12 +8,12 @@ name: Build and push docker (push/pull request)
 
 on:
   workflow_dispatch:
+  release:
+    types: [published]
   push:
     branches:
       - master
       - experimental
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
 
 env:
   DOCKER_PLATFORMS: linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64
