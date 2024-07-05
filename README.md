@@ -20,13 +20,14 @@ In the commands below, note the convention that a `#` prompt means you are in su
 # apt update
 # apt install --no-install-recommends build-essential git autoconf automake libtool libasound2-dev
 ```
-### Download and Build
+### Download, Build, Install
 ```
 $ git clone https://github.com/mikebrady/sps-alsa-explore.git
 $ cd sps-alsa-explore
 $ autoreconf -fi
 $ ./configure
 $ make
+# make install
 ```
 ## Use and Sample Output
 Note that the user running this tool must be a member of the `audio` group, or must be the `root` user.
