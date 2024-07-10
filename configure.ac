@@ -20,7 +20,7 @@ AM_CONDITIONAL([USE_GIT_VERSION], [test -n "$GIT" && test -e ".git/index" ])
 
 # Checks for libraries.
 AC_CHECK_LIB([m],[exp], , AC_MSG_ERROR(maths library needed))
-PKG_CHECK_MODULES([ALSA], [alsa], [LIBS="${ALSA_LIBS} ${LIBS}"])
+PKG_CHECK_MODULES([alsa], [alsa], [CFLAGS="${alsa_CFLAGS} ${CFLAGS}" LIBS="${alsa_LIBS} ${LIBS}"])
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h math.h])
