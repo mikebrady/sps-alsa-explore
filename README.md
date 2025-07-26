@@ -10,7 +10,8 @@ If successful, it lists any decibel-mapped mixers found on the device for possib
 It also suggests the frame rate and format that would be chosen by Shairport Sync in automatic mode.
 
 ## Docker Image
-`sps-alsa-explore` is available on the Docker Hub at [mikebrady/sps-alsa-explore](https://hub.docker.com/r/mikebrady/sps-alsa-explore).
+`sps-alsa-explore` is available on the Docker Hub at [mikebrady/sps-alsa-explore](https://hub.docker.com/r/mikebrady/sps-alsa-explore). Be sure to expose all `/dev/snd/*` device nodes to the container, i.e. `docker run -it --rm --device /dev/snd/ mikebrady/sps-alsa-explore`.
+
 Alternatively, you can build it using the following guide.
 
 ## Building
